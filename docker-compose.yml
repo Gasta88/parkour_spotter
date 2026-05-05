@@ -1,0 +1,78 @@
+services:
+  postgis:
+    image: postgis/postgis:16-3.4
+    container_name: parkour-postgis
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-parkour}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-parkour}
+      POSTGRES_DB: ${POSTGRES_DB:-parkour}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-parkour} -d ${POSTGRES_DB:-parkour}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    command: >
+      postgres
+      -c shared_preload_libraries=pg_stat_statements
+      -c pg_stat_statements.track=all
+
+  osm-loader:
+    build:
+      context: ./scripts/osm-loader
+      dockerfile: Dockerfile
+    container_name: parkour-osm-loader
+    depends_on:
+      postgis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-parkour}:${POSTGRES_PASSWORD:-parkour}@postgis:5432/${POSTGRES_DB:-parkour}
+      OSM_URL: ${OSM_URL:-https://download.geofabrik.de/europe/italy/veneto-latest.osm.pbf}
+    restart: "no"
+
+  api:
+    build:
+      context: .
+      dockerfile: services/api/Dockerfile
+    container_name: parkour-api
+    depends_on:
+      postgis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-parkour}:${POSTGRES_PASSWORD:-parkour}@postgis:5432/${POSTGRES_DB:-parkour}
+      H3_RESOLUTION: ${H3_RESOLUTION:-11}
+    ports:
+      - "${API_PORT:-8000}:8000"
+    volumes:
+      - ./common:/app/common
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  annotator:
+    build:
+      context: .
+      dockerfile: services/annotator/Dockerfile
+    container_name: parkour-annotator
+    depends_on:
+      postgis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-parkour}:${POSTGRES_PASSWORD:-parkour}@postgis:5432/${POSTGRES_DB:-parkour}
+    ports:
+      - "${ANNOTATOR_PORT:-8001}:8001"
+    volumes:
+      - ./common:/app/common
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
+
+  frontend:
+    build:
+      context: ./services/frontend
+      dockerfile: Dockerfile
+    container_name: parkour-frontend
+    ports:
+      - "${FRONTEND_PORT:-8080}:8080"
+
+volumes:
+  postgres_data:

@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parkour Spotter - Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+          crossorigin=""/>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        #map {
+            height: 100vh;
+            width: 100%;
+        }
+        .info-panel {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: white;
+            padding: 1rem;
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            z-index: 1000;
+            max-width: 300px;
+        }
+        .info-panel h2 {
+            margin-bottom: 0.5rem;
+            font-size: 1.2rem;
+        }
+        .info-panel p {
+            color: #666;
+            font-size: 0.9rem;
+        }
+        .analyze-btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 0.5rem;
+            width: 100%;
+        }
+        .analyze-btn:hover {
+            background: #2980b9;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <div class="info-panel">
+        <h2>Parkour Spotter</h2>
+        <p>Click anywhere on the map to analyze the area for parkour spots.</p>
+        <button class="analyze-btn" onclick="analyzeCenter()">Analyze Center</button>
+        <div id="results"></div>
+    </div>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+            crossorigin=""></script>
+    <script>
+        const map = L.map('map').setView([45.4408, 12.3155], 13);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        let marker;
+        let hexLayer;
+
+        map.on('click', function(e) {
+            const { lat, lng } = e.latlng;
+            
+            if (marker) {
+                map.removeLayer(marker);
+            }
+            
+            marker = L.marker([lat, lng]).addTo(map);
+            
+            analyzeLocation(lat, lng);
+        });
+
+        async function analyzeLocation(lat, lon, radius_km = 5) {
+            try {
+                const response = await fetch('/api/analyze', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        lat: lat,
+                        lon: lon,
+                        radius_km: radius_km,
+                    }),
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    displayResults(data);
+                }
+            } catch (error) {
+                console.error('Error analyzing location:', error);
+            }
+        }
+
+        function analyzeCenter() {
+            const center = map.getCenter();
+            analyzeLocation(center.lat, center.lng);
+        }
+
+        function displayResults(data) {
+            const resultsDiv = document.getElementById('results');
+            
+            if (hexLayer) {
+                map.removeLayer(hexLayer);
+            }
+
+            let html = '<h3>Results</h3>';
+            html += `<p>Data version: ${data.data_version}</p>`;
+            html += `<p>Query time: ${data.query_time_ms}ms</p>`;
+            html += '<ul>';
+            
+            data.cells.forEach(cell => {
+                html += `<li>
+                    <strong>${cell.h3_index}</strong><br>
+                    Score: ${cell.score}<br>
+                    Lat: ${cell.centroid.lat.toFixed(4)}, 
+                    Lon: ${cell.centroid.lon.toFixed(4)}
+                </li>`;
+            });
+            
+            html += '</ul>';
+            resultsDiv.innerHTML = html;
+        }
+
+        console.log('Parkour Spotter Frontend loaded');
+    </script>
+</body>
+</html>

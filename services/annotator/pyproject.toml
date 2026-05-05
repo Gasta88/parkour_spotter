@@ -1,0 +1,15 @@
+[project]
+name = "annotator"
+version = "0.1.0"
+description = "Parkour Spotter Annotation UI Service"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115,<0.116",
+    "uvicorn>=0.32,<0.33",
+    "sqlalchemy>=2.0,<3.0",
+    "asyncpg>=0.30,<0.31",
+    "pydantic-settings>=2.6,<3.0",
+]
+
+[tool.uv.sources]
+common = { workspace = true }

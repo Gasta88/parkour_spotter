@@ -1,0 +1,22 @@
+[project]
+name = "parkour-spotter"
+version = "0.1.0"
+description = "Parkour spot analysis and annotation platform"
+requires-python = ">=3.12"
+
+[tool.uv.workspace]
+members = [
+    "common",
+    "services/api",
+    "services/annotator",
+]
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=8.3,<9.0",
+    "pytest-asyncio>=0.24,<0.25",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["services/api/app/tests"]

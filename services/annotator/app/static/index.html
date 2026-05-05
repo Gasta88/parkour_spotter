@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parkour Spotter - Annotator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        header {
+            background: #2c3e50;
+            color: white;
+            padding: 1rem;
+            text-align: center;
+        }
+        #map {
+            flex: 1;
+            width: 100%;
+        }
+        #sidebar {
+            width: 300px;
+            background: #f5f5f5;
+            padding: 1rem;
+            overflow-y: auto;
+        }
+        .container {
+            display: flex;
+            flex: 1;
+        }
+        .annotation-form {
+            background: white;
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+        }
+        .annotation-form input,
+        .annotation-form textarea {
+            width: 100%;
+            margin-bottom: 0.5rem;
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .annotation-form button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .annotation-form button:hover {
+            background: #2980b9;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Parkour Spotter - Annotation Tool</h1>
+    </header>
+    <div class="container">
+        <div id="map"></div>
+        <div id="sidebar">
+            <div class="annotation-form">
+                <h3>Add Annotation</h3>
+                <input type="text" id="h3-index" placeholder="H3 Index">
+                <textarea id="notes" placeholder="Notes" rows="3"></textarea>
+                <input type="number" id="rating" placeholder="Rating (0-5)" step="0.1" min="0" max="5">
+                <button onclick="addAnnotation()">Save Annotation</button>
+            </div>
+            <div id="annotations-list">
+                <h3>Annotations</h3>
+                <p>No annotations yet.</p>
+            </div>
+        </div>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>
