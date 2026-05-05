@@ -1,0 +1,9 @@
+.git
+.ruff_cache
+specs/
+docs/
+.env
+.env.example
+Makefile
+pyproject.toml
+README.md
