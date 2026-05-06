@@ -1,5 +1,8 @@
 """Response schemas for analyze endpoint."""
 
+from datetime import datetime
+from typing import Optional
+
 from pydantic import BaseModel, Field
 
 
@@ -24,15 +27,29 @@ class HexCell(BaseModel):
     centroid: Centroid
 
 
+class DataVersion(BaseModel):
+    """Data version metadata for OSM data load.
+
+    Attributes:
+        loaded_at: Timestamp when data was loaded
+        osm_source_url: URL of the OSM data source
+        file_size_mb: Size of the downloaded PBF file in MB
+    """
+
+    loaded_at: datetime
+    osm_source_url: str
+    file_size_mb: float
+
+
 class AnalyzeResponse(BaseModel):
     """Response schema for analyze endpoint.
 
     Attributes:
         cells: List of scored H3 cells
-        data_version: Version of OSM data used
+        data_version: Version metadata of OSM data used
         query_time_ms: Query execution time in milliseconds
     """
 
     cells: list[HexCell]
-    data_version: str
+    data_version: Optional[DataVersion] = None
     query_time_ms: int

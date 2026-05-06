@@ -1,9 +1,11 @@
 """Analyze endpoint for parkour spot analysis."""
 
+import asyncpg
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
-from app.schemas.analyze import AnalyzeResponse
+from app.config import settings
+from app.schemas.analyze import AnalyzeResponse, DataVersion
 
 router = APIRouter()
 
@@ -22,8 +24,34 @@ class AnalyzeRequest(BaseModel):
     radius_km: float = Field(..., gt=0, le=10, description="Radius in kilometers")
 
 
+async def get_latest_data_version() -> DataVersion | None:
+    """Query the latest data version from the database.
+
+    Returns:
+        DataVersion object if available, None otherwise
+    """
+    try:
+        db_url = settings.database_url.replace("postgresql+asyncpg://", "postgresql://")
+        conn = await asyncpg.connect(db_url)
+        try:
+            row = await conn.fetchrow(
+                "SELECT loaded_at, osm_source_url, file_size_mb FROM data_version ORDER BY loaded_at DESC LIMIT 1"
+            )
+            if row:
+                return DataVersion(
+                    loaded_at=row["loaded_at"],
+                    osm_source_url=row["osm_source_url"],
+                    file_size_mb=row["file_size_mb"],
+                )
+            return None
+        finally:
+            await conn.close()
+    except Exception:
+        return None
+
+
 @router.post("/analyze", response_model=AnalyzeResponse)
-def analyze(request: AnalyzeRequest) -> AnalyzeResponse:
+async def analyze(request: AnalyzeRequest) -> AnalyzeResponse:
     """Analyze an area for parkour spots.
 
     Args:
@@ -33,6 +61,9 @@ def analyze(request: AnalyzeRequest) -> AnalyzeResponse:
         Analysis response with scored H3 cells
     """
     from common.h3_utils import latlng_to_h3, h3_to_latlng
+    import time
+
+    start_time = time.time()
 
     h3_index = latlng_to_h3(request.lat, request.lon)
     centroid = h3_to_latlng(h3_index)
@@ -46,8 +77,12 @@ def analyze(request: AnalyzeRequest) -> AnalyzeResponse:
         },
     }
 
+    data_version = await get_latest_data_version()
+    
+    query_time_ms = int((time.time() - start_time) * 1000)
+
     return AnalyzeResponse(
         cells=[cell],
-        data_version="unknown",
-        query_time_ms=0,
+        data_version=data_version,
+        query_time_ms=query_time_ms,
     )

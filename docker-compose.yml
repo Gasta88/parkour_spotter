@@ -30,7 +30,12 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-parkour}:${POSTGRES_PASSWORD:-parkour}@postgis:5432/${POSTGRES_DB:-parkour}
-      OSM_URL: ${OSM_URL:-https://download.geofabrik.de/europe/italy/veneto-latest.osm.pbf}
+      OSM_URL: ${OSM_URL:-https://download.bbbike.org/osm/bbbike/Padova/Padova.osm.pbf}
+      OSM_MIN_FILE_SIZE_MB: ${OSM_MIN_FILE_SIZE_MB:-1}
+      REFRESH_INTERVAL_HOURS: ${REFRESH_INTERVAL_HOURS:-24}
+      FORCE_RELOAD: ${FORCE_RELOAD:-false}
+      OSM2PGSQL_CACHE_MB: ${OSM2PGSQL_CACHE_MB:-512}
+      OSM2PGSQL_PROCESSES: ${OSM2PGSQL_PROCESSES:-2}
     restart: "no"
 
   api:
