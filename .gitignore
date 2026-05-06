@@ -64,3 +64,4 @@ data/*.pbf
 
 # Specifications
 specs/
+pr-description.md

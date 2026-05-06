@@ -5,6 +5,11 @@ log() {
     echo "[$(date -u +"%Y-%m-%dT%H:%M:%SZ")] $1"
 }
 
+cleanup() {
+    rm -f "$PGPASSFILE" "$OSM_FILE"
+}
+trap cleanup EXIT
+
 log "Starting OSM data loader..."
 
 if [ -z "$DATABASE_URL" ]; then
@@ -56,7 +61,18 @@ DB_HOST=$(echo "$DATABASE_URL" | grep -oP '@\K[^:]+')
 DB_PORT=$(echo "$DATABASE_URL" | grep -oP ':\K[0-9]+(?=/)')
 DB_NAME=$(echo "$DATABASE_URL" | grep -oP '/\K[^?]+')
 DB_USER=$(echo "$DATABASE_URL" | grep -oP '://\K[^:]+')
-export PGPASSWORD=$(echo "$DATABASE_URL" | grep -oP '://[^:]+:\K[^@]+')
+DB_PASSWORD=$(echo "$DATABASE_URL" | grep -oP '://[^:]+:\K[^@]+')
+
+if [ -z "$DB_HOST" ] || [ -z "$DB_PORT" ] || [ -z "$DB_NAME" ] || [ -z "$DB_USER" ]; then
+    log "Error: Failed to parse DATABASE_URL"
+    rm -f "$OSM_FILE"
+    exit 1
+fi
+
+PGPASSFILE="/tmp/.pgpass"
+echo "${DB_HOST}:${DB_PORT}:${DB_NAME}:${DB_USER}:${DB_PASSWORD}" > "$PGPASSFILE"
+chmod 600 "$PGPASSFILE"
+export PGPASSFILE
 
 log "Waiting for PostgreSQL to be ready..."
 MAX_RETRIES=30
@@ -90,14 +106,14 @@ EOF
 
 if [ "$FORCE_RELOAD" != "true" ]; then
     log "Checking for recent load within ${REFRESH_INTERVAL_HOURS}h with matching hash..."
-    RECENT_LOAD=$(psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -t -A <<EOF
+    RECENT_LOAD=$(psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -t -A -v hash="$OSM_FILE_HASH" -v interval_hours="$REFRESH_INTERVAL_HOURS" <<EOF
 SELECT COUNT(*) FROM data_version 
-WHERE loaded_at > NOW() - INTERVAL '${REFRESH_INTERVAL_HOURS} hours' 
-AND osm_file_hash = '$OSM_FILE_HASH'
+WHERE loaded_at > NOW() - INTERVAL ':interval_hours hours' 
+AND osm_file_hash = ':hash'
 AND success = TRUE;
 EOF
 )
-    if [ "$RECENT_LOAD" -gt 0 ]; then
+    if [[ "$RECENT_LOAD" =~ ^[0-9]+$ ]] && [ "$RECENT_LOAD" -gt 0 ]; then
         log "Idempotency check passed: recent successful load with same file hash found. Skipping reload."
         rm -f "$OSM_FILE"
         exit 0
@@ -151,6 +167,12 @@ POLYGON_COUNT=$(psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -t 
 
 log "Row counts: point=$POINT_COUNT, line=$LINE_COUNT, polygon=$POLYGON_COUNT"
 
+if ! [[ "$POINT_COUNT" =~ ^[0-9]+$ ]] || ! [[ "$LINE_COUNT" =~ ^[0-9]+$ ]] || ! [[ "$POLYGON_COUNT" =~ ^[0-9]+$ ]]; then
+    log "Error: Invalid row count values received"
+    rm -f "$OSM_FILE"
+    exit 1
+fi
+
 TOTAL_ROWS=$((POINT_COUNT + LINE_COUNT + POLYGON_COUNT))
 if [ "$TOTAL_ROWS" -eq 0 ]; then
     log "Error: Load validation failed - all tables are empty"
@@ -168,9 +190,9 @@ fi
 log "Recording data version metadata..."
 ROW_COUNTS_JSON="{\"point\":$POINT_COUNT,\"line\":$LINE_COUNT,\"polygon\":$POLYGON_COUNT}"
 
-psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" <<EOF
+psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -v url="$OSM_URL" -v hash="$OSM_FILE_HASH" -v size_mb="$FILE_SIZE_MB" -v counts="$ROW_COUNTS_JSON" -v duration="$LOAD_DURATION" <<EOF
 INSERT INTO data_version (osm_source_url, osm_file_hash, file_size_mb, row_counts, load_duration_seconds, success)
-VALUES ('$OSM_URL', '$OSM_FILE_HASH', $FILE_SIZE_MB, '$ROW_COUNTS_JSON', $LOAD_DURATION, TRUE);
+VALUES (:url, :hash, :size_mb, :counts::jsonb, :duration, TRUE);
 EOF
 
 log "Creating/refreshing parkour_features materialized view..."

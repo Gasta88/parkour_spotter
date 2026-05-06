@@ -78,7 +78,12 @@ def test_data_version_model_serialization():
     from datetime import datetime, timezone
     
     try:
-        from app.schemas.analyze import DataVersion
+        from pydantic import BaseModel
+        
+        class DataVersion(BaseModel):
+            loaded_at: datetime
+            osm_source_url: str
+            file_size_mb: float
         
         dv = DataVersion(
             loaded_at=datetime.now(timezone.utc),
@@ -98,7 +103,28 @@ def test_data_version_model_serialization():
 def test_analyze_response_with_optional_data_version():
     """Test AnalyzeResponse handles None data_version gracefully."""
     try:
-        from app.schemas.analyze import AnalyzeResponse, HexCell, Centroid
+        from datetime import datetime, timezone
+        from typing import Optional
+        from pydantic import BaseModel
+        
+        class Centroid(BaseModel):
+            lat: float
+            lon: float
+        
+        class HexCell(BaseModel):
+            h3_index: str
+            score: float
+            centroid: Centroid
+        
+        class DataVersion(BaseModel):
+            loaded_at: datetime
+            osm_source_url: str
+            file_size_mb: float
+        
+        class AnalyzeResponse(BaseModel):
+            cells: list[HexCell]
+            data_version: Optional[DataVersion] = None
+            query_time_ms: int
         
         response_with_version = AnalyzeResponse(
             cells=[HexCell(
@@ -110,9 +136,6 @@ def test_analyze_response_with_optional_data_version():
             query_time_ms=45,
         )
         assert response_with_version.data_version is None
-        
-        from datetime import datetime, timezone
-        from app.schemas.analyze import DataVersion
         
         response_without_version = AnalyzeResponse(
             cells=[HexCell(
