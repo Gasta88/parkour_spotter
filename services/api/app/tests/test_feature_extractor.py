@@ -208,3 +208,25 @@ class TestFeatureExtractorIntegration:
                 assert isinstance(features, dict)
         finally:
             await engine.dispose()
+
+
+class TestNewOSMCategories:
+    """Tests for new OSM feature categories."""
+
+    def test_new_osm_categories_in_registry(self) -> None:
+        """Test that bridges, rocks_stones, sports_pitches, good_surfaces are in registry."""
+        assert "bridges" in FEATURE_QUERIES
+        assert "rocks_stones" in FEATURE_QUERIES
+        assert "sports_pitches" in FEATURE_QUERIES
+        assert "good_surfaces" in FEATURE_QUERIES
+
+    def test_new_osm_queries_valid_sql(self) -> None:
+        """Test that new OSM queries produce valid SQL."""
+        from common.sql_queries import build_feature_query
+        
+        h3_indices = [123456789, 987654321]
+        
+        for category in ["bridges", "rocks_stones", "sports_pitches", "good_surfaces"]:
+            query = build_feature_query(category, h3_indices, resolution=11)
+            # Query should be a SQLAlchemy text object
+            assert hasattr(query, 'compile')
