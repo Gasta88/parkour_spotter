@@ -1,6 +1,8 @@
 services:
   postgis:
-    image: postgis/postgis:16-3.4
+    build:
+      context: .
+      dockerfile: services/postgis/Dockerfile
     container_name: parkour-postgis
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-parkour}
@@ -10,6 +12,7 @@ services:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-h3-pg.sql:/docker-entrypoint-initdb.d/init-h3-pg.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-parkour} -d ${POSTGRES_DB:-parkour}"]
       interval: 10s

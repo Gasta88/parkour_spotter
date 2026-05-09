@@ -32,7 +32,7 @@ status:
 	docker compose exec -T postgis psql -U parkour -d parkour -c "SELECT id, loaded_at, osm_source_url, file_size_mb, row_counts, load_duration_seconds, success FROM data_version ORDER BY loaded_at DESC LIMIT 1;"
 
 clean-osm:
-	docker compose exec -T postgis psql -U parkour -d parkour -c "TRUNCATE TABLE planet_osm_point CASCADE; TRUNCATE TABLE planet_osm_line CASCADE; TRUNCATE TABLE planet_osm_polygon CASCADE; TRUNCATE TABLE planet_osm_roads CASCADE; DROP MATERIALIZED VIEW IF EXISTS parkour_features;"
+	docker compose exec -T postgis psql -U parkour -d parkour -c "TRUNCATE TABLE planet_osm_point CASCADE; TRUNCATE TABLE planet_osm_line CASCADE; TRUNCATE TABLE planet_osm_polygon CASCADE; TRUNCATE TABLE planet_osm_roads CASCADE;"
 
 switch-city:
 ifndef OSM_URL
