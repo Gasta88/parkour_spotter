@@ -17,8 +17,8 @@ if [ -z "$DATABASE_URL" ]; then
     exit 1
 fi
 
-if [ -z "$OSM_URL" ]; then
-    log "Error: OSM_URL not set"
+if [ -z "$OSM_LOCAL_FILE" ] && [ -z "$OSM_URL" ]; then
+    log "Error: Neither OSM_LOCAL_FILE nor OSM_URL is set"
     exit 1
 fi
 
@@ -30,9 +30,24 @@ OSM2PGSQL_PROCESSES=${OSM2PGSQL_PROCESSES:-2}
 
 OSM_FILE="/tmp/data.osm.pbf"
 
-log "Downloading OSM data from $OSM_URL..."
-if ! wget -O "$OSM_FILE" "$OSM_URL"; then
-    log "Error: Failed to download OSM file from $OSM_URL"
+# Local-file-first logic: check for a local PBF before downloading
+if [ -n "$OSM_LOCAL_FILE" ]; then
+    LOCAL_PATH="/osm-data/$OSM_LOCAL_FILE"
+    if [ -f "$LOCAL_PATH" ]; then
+        log "Using local OSM file: $LOCAL_PATH"
+        cp "$LOCAL_PATH" "$OSM_FILE"
+    else
+        log "Error: OSM_LOCAL_FILE is set to '$OSM_LOCAL_FILE' but file not found at $LOCAL_PATH"
+        exit 1
+    fi
+elif [ -n "$OSM_URL" ]; then
+    log "Downloading OSM data from $OSM_URL..."
+    if ! wget -O "$OSM_FILE" "$OSM_URL"; then
+        log "Error: Failed to download OSM file from $OSM_URL"
+        exit 1
+    fi
+else
+    log "Error: Neither OSM_LOCAL_FILE nor OSM_URL is set"
     exit 1
 fi
 
@@ -59,7 +74,7 @@ log "File hash: $OSM_FILE_HASH"
 log "Extracting database connection details..."
 DB_HOST=$(echo "$DATABASE_URL" | grep -oP '@\K[^:]+')
 DB_PORT=$(echo "$DATABASE_URL" | grep -oP ':\K[0-9]+(?=/)')
-DB_NAME=$(echo "$DATABASE_URL" | grep -oP '/\K[^?]+')
+DB_NAME=$(echo "$DATABASE_URL" | grep -oP ':\d+/\K[^?]+')
 DB_USER=$(echo "$DATABASE_URL" | grep -oP '://\K[^:]+')
 DB_PASSWORD=$(echo "$DATABASE_URL" | grep -oP '://[^:]+:\K[^@]+')
 
@@ -107,9 +122,9 @@ EOF
 if [ "$FORCE_RELOAD" != "true" ]; then
     log "Checking for recent load within ${REFRESH_INTERVAL_HOURS}h with matching hash..."
     RECENT_LOAD=$(psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -t -A -v hash="$OSM_FILE_HASH" -v interval_hours="$REFRESH_INTERVAL_HOURS" <<EOF
-SELECT COUNT(*) FROM data_version 
-WHERE loaded_at > NOW() - INTERVAL ':interval_hours hours' 
-AND osm_file_hash = ':hash'
+SELECT COUNT(*) FROM data_version
+WHERE loaded_at > NOW() - make_interval(hours => :interval_hours)
+AND osm_file_hash = :'hash'
 AND success = TRUE;
 EOF
 )
@@ -123,12 +138,29 @@ else
     log "FORCE_RELOAD=true, bypassing idempotency check"
 fi
 
-log "TRUNCATING existing planet_osm_* tables for city-switching..."
+log "Enabling required PostgreSQL extensions..."
 psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" <<EOF
-TRUNCATE TABLE planet_osm_point CASCADE;
-TRUNCATE TABLE planet_osm_line CASCADE;
-TRUNCATE TABLE planet_osm_polygon CASCADE;
-TRUNCATE TABLE planet_osm_roads CASCADE;
+CREATE EXTENSION IF NOT EXISTS hstore;
+CREATE EXTENSION IF NOT EXISTS postgis;
+EOF
+
+log "TRUNCATING existing planet_osm_* tables for city-switching (if they exist)..."
+psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" <<EOF
+DO \$\$
+BEGIN
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'planet_osm_point') THEN
+        TRUNCATE TABLE planet_osm_point CASCADE;
+    END IF;
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'planet_osm_line') THEN
+        TRUNCATE TABLE planet_osm_line CASCADE;
+    END IF;
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'planet_osm_polygon') THEN
+        TRUNCATE TABLE planet_osm_polygon CASCADE;
+    END IF;
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'planet_osm_roads') THEN
+        TRUNCATE TABLE planet_osm_roads CASCADE;
+    END IF;
+END \$\$;
 EOF
 
 START_TIME=$(date +%s)
@@ -192,7 +224,7 @@ ROW_COUNTS_JSON="{\"point\":$POINT_COUNT,\"line\":$LINE_COUNT,\"polygon\":$POLYG
 
 psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -v url="$OSM_URL" -v hash="$OSM_FILE_HASH" -v size_mb="$FILE_SIZE_MB" -v counts="$ROW_COUNTS_JSON" -v duration="$LOAD_DURATION" <<EOF
 INSERT INTO data_version (osm_source_url, osm_file_hash, file_size_mb, row_counts, load_duration_seconds, success)
-VALUES (:url, :hash, :size_mb, :counts::jsonb, :duration, TRUE);
+VALUES (:'url', :'hash', :size_mb, :'counts'::jsonb, :duration, TRUE);
 EOF
 
 log "Creating/refreshing parkour_features materialized view..."

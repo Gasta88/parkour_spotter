@@ -1,0 +1,3 @@
+# This directory holds local OSM PBF files for fast development loading.
+# Place your city's .osm.pbf file here (e.g., city.osm.pbf).
+# These files are git-ignored.
