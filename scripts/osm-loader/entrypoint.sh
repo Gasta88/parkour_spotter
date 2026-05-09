@@ -142,6 +142,7 @@ log "Enabling required PostgreSQL extensions..."
 psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" <<EOF
 CREATE EXTENSION IF NOT EXISTS hstore;
 CREATE EXTENSION IF NOT EXISTS postgis;
+CREATE EXTENSION IF NOT EXISTS h3_pg;
 EOF
 
 log "TRUNCATING existing planet_osm_* tables for city-switching (if they exist)..."
@@ -225,36 +226,6 @@ ROW_COUNTS_JSON="{\"point\":$POINT_COUNT,\"line\":$LINE_COUNT,\"polygon\":$POLYG
 psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -v url="$OSM_URL" -v hash="$OSM_FILE_HASH" -v size_mb="$FILE_SIZE_MB" -v counts="$ROW_COUNTS_JSON" -v duration="$LOAD_DURATION" <<EOF
 INSERT INTO data_version (osm_source_url, osm_file_hash, file_size_mb, row_counts, load_duration_seconds, success)
 VALUES (:'url', :'hash', :size_mb, :'counts'::jsonb, :duration, TRUE);
-EOF
-
-log "Creating/refreshing parkour_features materialized view..."
-psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" <<EOF
-DROP MATERIALIZED VIEW IF EXISTS parkour_features;
-CREATE MATERIALIZED VIEW parkour_features AS
-SELECT 
-    osm_id,
-    name,
-    amenity,
-    leisure,
-    sport,
-    way
-FROM planet_osm_polygon
-WHERE 
-    amenity IN ('park', 'playground', 'sports_centre', 'stadium')
-    OR leisure IN ('park', 'playground', 'sports_centre', 'stadium', 'pitch')
-    OR sport IS NOT NULL
-UNION ALL
-SELECT 
-    osm_id,
-    name,
-    amenity,
-    NULL as leisure,
-    NULL as sport,
-    way
-FROM planet_osm_point
-WHERE 
-    amenity IN ('park', 'playground', 'sports_centre', 'stadium');
-CREATE INDEX IF NOT EXISTS idx_parkour_features_way ON parkour_features USING GIST (way);
 EOF
 
 log "OSM data loaded successfully in ${LOAD_DURATION}s!"
