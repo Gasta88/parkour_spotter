@@ -29,7 +29,31 @@ make down
 
 # Load OSM data (one-time)
 make load-osm
+
+# Load OSM data from a local PBF file (recommended for development)
+# First, place your city's .osm.pbf file in the data/ directory
+make load-local OSM_LOCAL_FILE=city.osm.pbf
 ```
+
+### Local PBF Workflow (Recommended for Development)
+
+For faster development cycles, you can store the OSM PBF file locally instead of downloading it every time:
+
+1. **Download the PBF file once** (from any source) and place it in the `data/` directory:
+   ```bash
+   mkdir -p data
+   wget -O data/city.osm.pbf "$OSM_URL"
+   # Or download from Geofabrik, BBBike, etc.
+   ```
+
+2. **Load from the local file** — near-instant, no network download:
+   ```bash
+   make load-local OSM_LOCAL_FILE=city.osm.pbf
+   ```
+
+3. **Subsequent loads** are fast because the idempotency check skips re-importing the same data.
+
+The `data/` directory is git-ignored, so PBF files won't be tracked. You can switch cities by placing different `.osm.pbf` files in `data/` and changing the `OSM_LOCAL_FILE` value.
 
 ### Services
 

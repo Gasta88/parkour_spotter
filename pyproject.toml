@@ -15,8 +15,17 @@ members = [
 dev-dependencies = [
     "pytest>=8.3,<9.0",
     "pytest-asyncio>=0.24,<0.25",
+    "testcontainers>=4.14.2",
+    "asyncpg>=0.30,<0.31",
+    "httpx>=0.27.0",
+    "fastapi>=0.115,<0.116",
+    "uvicorn>=0.32,<0.33",
+    "sqlalchemy>=2.0,<3.0",
+    "h3>=4.1,<5.0",
+    "pydantic-settings>=2.6,<3.0",
+    "ruff>=0.9.0"
 ]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-testpaths = ["services/api/app/tests"]
+testpaths = ["services/api/app/tests", "scripts/osm-loader/tests"]
