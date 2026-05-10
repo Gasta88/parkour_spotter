@@ -300,6 +300,149 @@ WHERE access IN ('private', 'no')
 GROUP BY h3_index
 """
 
+# FEATURE: bridges
+# OSM tags: man_made=bridge, bridge=yes
+# Geometry: line (planet_osm_line), polygon (planet_osm_polygon)
+# Metric: count + total_length_m (lines), count + total_area_m2 (polygons)
+#
+# Bridges provide elevated platforms, railings, and varied heights for parkour.
+QUERY_BRIDGES = """
+-- FEATURE: bridges
+-- OSM tags: man_made=bridge, bridge=yes
+-- Geometry: line (planet_osm_line), polygon (planet_osm_polygon)
+-- Metric: count + total_length_m (lines), count + total_area_m2 (polygons)
+--
+-- Bridges offer elevated walkways, railings, and structural elements
+-- suitable for parkour training.
+SELECT
+    h3_latlng_to_cell(ST_Centroid(way), :resolution) AS h3_index,
+    COUNT(*) AS count,
+    COALESCE(SUM(ST_Length(way::geography)), 0) AS total_length_m,
+    0 AS total_area_m2
+FROM planet_osm_line
+WHERE man_made = 'bridge'
+   OR bridge = 'yes'
+  AND h3_latlng_to_cell(ST_Centroid(way), :resolution) = ANY(:h3_indices)
+GROUP BY h3_index
+
+UNION ALL
+
+SELECT
+    h3_latlng_to_cell(ST_Centroid(way), :resolution) AS h3_index,
+    COUNT(*) AS count,
+    0 AS total_length_m,
+    COALESCE(SUM(ST_Area(way::geography)), 0) AS total_area_m2
+FROM planet_osm_polygon
+WHERE man_made = 'bridge'
+   OR bridge = 'yes'
+  AND h3_latlng_to_cell(ST_Centroid(way), :resolution) = ANY(:h3_indices)
+GROUP BY h3_index
+"""
+
+# FEATURE: rocks_stones
+# OSM tags: natural=stone, natural=rock
+# Geometry: point (planet_osm_point), polygon (planet_osm_polygon)
+# Metric: count + total_area_m2 (polygons), count (points)
+#
+# Natural rocks and stones provide varied textures and heights for climbing practice.
+QUERY_ROCKS_STONES = """
+-- FEATURE: rocks_stones
+-- OSM tags: natural=stone, natural=rock
+-- Geometry: point (planet_osm_point), polygon (planet_osm_polygon)
+-- Metric: count + total_area_m2 (polygons), count (points)
+--
+-- Natural rock formations and large stones offer climbing and balancing
+-- opportunities with varied textures and heights.
+SELECT
+    h3_latlng_to_cell(ST_Centroid(way), :resolution) AS h3_index,
+    COUNT(*) AS count,
+    COALESCE(SUM(ST_Area(way::geography)), 0) AS total_area_m2
+FROM planet_osm_polygon
+WHERE natural IN ('stone', 'rock')
+  AND h3_latlng_to_cell(ST_Centroid(way), :resolution) = ANY(:h3_indices)
+GROUP BY h3_index
+
+UNION ALL
+
+SELECT
+    h3_latlng_to_cell(ST_Centroid(way), :resolution) AS h3_index,
+    COUNT(*) AS count,
+    0 AS total_area_m2
+FROM planet_osm_point
+WHERE natural IN ('stone', 'rock')
+  AND h3_latlng_to_cell(ST_Centroid(way), :resolution) = ANY(:h3_indices)
+GROUP BY h3_index
+"""
+
+# FEATURE: sports_pitches
+# OSM tags: leisure=pitch, sport=basketball, sport=football, sport=tennis, etc.
+# Geometry: polygon (planet_osm_polygon)
+# Metric: count + total_area_m2
+#
+# Sports pitches have lines, courts, walls, and equipment useful for parkour.
+QUERY_SPORTS_PITCHES = """
+-- FEATURE: sports_pitches
+-- OSM tags: leisure=pitch, sport=basketball, sport=football, sport=tennis, etc.
+-- Geometry: polygon (planet_osm_polygon)
+-- Metric: count + total_area_m2
+--
+-- Sports courts and pitches provide marked lines, low walls, basketball hoops,
+-- goal posts, and varied surfaces for parkour training.
+SELECT
+    h3_latlng_to_cell(ST_Centroid(way), :resolution) AS h3_index,
+    COUNT(*) AS count,
+    COALESCE(SUM(ST_Area(way::geography)), 0) AS total_area_m2
+FROM planet_osm_polygon
+WHERE leisure = 'pitch'
+   OR sport IN ('basketball', 'football', 'tennis', 'volleyball', 'handball', 'futsal')
+  AND h3_latlng_to_cell(ST_Centroid(way), :resolution) = ANY(:h3_indices)
+GROUP BY h3_index
+"""
+
+# FEATURE: good_surfaces
+# OSM tags: surface=paving_stones, surface=concrete, surface=asphalt, surface=wood
+# Geometry: point (planet_osm_point), line (planet_osm_line), polygon (planet_osm_polygon)
+# Metric: count
+#
+# Good surfaces (smooth, flat) are preferred for safe parkour training.
+# This acts as a bonus modifier rather than an additive feature.
+QUERY_GOOD_SURFACES = """
+-- FEATURE: good_surfaces
+-- OSM tags: surface=paving_stones, surface=concrete, surface=asphalt, surface=wood
+-- Geometry: point (planet_osm_point), line (planet_osm_line), polygon (planet_osm_polygon)
+-- Metric: count
+--
+-- Features with smooth, flat surfaces are safer for parkour training.
+-- This category acts as a bonus modifier on the final score.
+SELECT
+    h3_latlng_to_cell(ST_Centroid(way), :resolution) AS h3_index,
+    COUNT(*) AS count
+FROM planet_osm_point
+WHERE surface IN ('paving_stones', 'concrete', 'asphalt', 'wood', 'paved')
+  AND h3_latlng_to_cell(ST_Centroid(way), :resolution) = ANY(:h3_indices)
+GROUP BY h3_index
+
+UNION ALL
+
+SELECT
+    h3_latlng_to_cell(ST_Centroid(way), :resolution) AS h3_index,
+    COUNT(*) AS count
+FROM planet_osm_line
+WHERE surface IN ('paving_stones', 'concrete', 'asphalt', 'wood', 'paved')
+  AND h3_latlng_to_cell(ST_Centroid(way), :resolution) = ANY(:h3_indices)
+GROUP BY h3_index
+
+UNION ALL
+
+SELECT
+    h3_latlng_to_cell(ST_Centroid(way), :resolution) AS h3_index,
+    COUNT(*) AS count
+FROM planet_osm_polygon
+WHERE surface IN ('paving_stones', 'concrete', 'asphalt', 'wood', 'paved')
+  AND h3_latlng_to_cell(ST_Centroid(way), :resolution) = ANY(:h3_indices)
+GROUP BY h3_index
+"""
+
 # ---------------------------------------------------------------------------
 # Query registry — maps feature category name to SQL template
 # ---------------------------------------------------------------------------
@@ -313,10 +456,16 @@ FEATURE_QUERIES: dict[str, str] = {
     "benches_blocks": QUERY_BENCHES_BLOCKS,
     "fitness_stations": QUERY_FITNESS_STATIONS,
     "private_access_penalty": QUERY_PRIVATE_ACCESS,
+    "bridges": QUERY_BRIDGES,
+    "rocks_stones": QUERY_ROCKS_STONES,
+    "sports_pitches": QUERY_SPORTS_PITCHES,
+    "good_surfaces": QUERY_GOOD_SURFACES,
 }
 
 
-def build_feature_query(feature_name: str, h3_indices: list[int], resolution: int = H3_RESOLUTION) -> text:
+def build_feature_query(
+    feature_name: str, h3_indices: list[int], resolution: int = H3_RESOLUTION
+) -> text:
     """Build a parameterized SQLAlchemy text query for a feature category.
 
     Args:
