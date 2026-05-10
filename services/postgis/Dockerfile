@@ -1,7 +1,4 @@
-FROM postgis/postgis:16-3.4
+FROM ivanlonel/postgis-with-extensions:16-3.5
 
-# Install h3-pg extension (PostgreSQL bindings for Uber's H3)
-# Available via apt on Debian-based PostGIS images (Ubuntu 22.04+)
-RUN apt-get update && \
-    apt-get install -y postgresql-16-h3 && \
-    rm -rf /var/lib/apt/lists/*
+# This image includes h3-pg extension pre-installed along with 50+ other extensions
+# No additional build steps needed

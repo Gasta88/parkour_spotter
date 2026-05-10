@@ -1,6 +1,5 @@
 """Tests for calibration module."""
 
-import pytest
 from app.scorers.calibration import (
     CalibrationResult,
     grid_search_calibrate,
@@ -23,7 +22,7 @@ class TestSigmoidFunction:
         # raw=0 → sigmoid(-1) ≈ 0.27
         result = _sigmoid(0, 2.0, 0.5)
         assert 0.2 < result < 0.4
-        
+
         # raw=10 → sigmoid(4) ≈ 0.98
         result = _sigmoid(10, 2.0, 0.5)
         assert result > 0.95
@@ -72,7 +71,7 @@ class TestGridSearchCalibrate:
             (8, 0.85),
             (10, 0.95),
         ]
-        
+
         result = grid_search_calibrate(
             samples,
             offset_range=(0.0, 5.0),
@@ -80,7 +79,7 @@ class TestGridSearchCalibrate:
             scale_range=(0.1, 1.0),
             scale_step=0.05,
         )
-        
+
         assert result.samples_used == 5
         assert result.mse >= 0
         assert 0.0 <= result.offset <= 5.0
@@ -89,7 +88,7 @@ class TestGridSearchCalibrate:
     def test_calibration_fallback_empty_samples(self) -> None:
         """Test that calibration returns defaults with no samples."""
         result = grid_search_calibrate([])
-        
+
         assert result.offset == 2.0
         assert result.scale == 0.5
         assert result.mse == 0.0
@@ -102,9 +101,9 @@ class TestGridSearchCalibrate:
         for raw in range(0, 20, 2):
             human_score = _sigmoid(raw, 2.0, 0.5)
             samples.append((raw, human_score))
-        
+
         result = grid_search_calibrate(samples)
-        
+
         # Should find parameters close to the true values
         assert abs(result.offset - 2.0) < 0.5
         assert abs(result.scale - 0.5) < 0.1
@@ -117,7 +116,7 @@ class TestCalibrationResult:
     def test_calibration_result_creation(self) -> None:
         """Test CalibrationResult can be created."""
         result = CalibrationResult(offset=2.5, scale=0.6, mse=0.05, samples_used=50)
-        
+
         assert result.offset == 2.5
         assert result.scale == 0.6
         assert result.mse == 0.05

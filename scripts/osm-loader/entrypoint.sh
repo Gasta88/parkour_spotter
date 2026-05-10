@@ -142,7 +142,7 @@ log "Enabling required PostgreSQL extensions..."
 psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" <<EOF
 CREATE EXTENSION IF NOT EXISTS hstore;
 CREATE EXTENSION IF NOT EXISTS postgis;
-CREATE EXTENSION IF NOT EXISTS h3_pg;
+CREATE EXTENSION IF NOT EXISTS h3;
 EOF
 
 log "TRUNCATING existing planet_osm_* tables for city-switching (if they exist)..."

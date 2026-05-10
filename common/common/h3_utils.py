@@ -48,7 +48,9 @@ def h3_to_latlng(h3_index: str) -> tuple[float, float]:
     return h3.cell_to_latlng(h3_index)
 
 
-def get_k_ring(h3_index: str, radius_km: float, resolution: int | None = None) -> set[str]:
+def get_k_ring(
+    h3_index: str, radius_km: float, resolution: int | None = None
+) -> set[str]:
     """Compute the H3 k-ring (all cells within k steps) covering a radius.
 
     The k-ring depth is derived from the radius and the approximate edge

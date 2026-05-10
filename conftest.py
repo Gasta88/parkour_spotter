@@ -40,7 +40,8 @@ def postgres_container():
 async def db_url(postgres_container):
     """Create a clean database state for each test function.
 
-    Creates the data_version table and yields the DATABASE_URL.
+    Creates the data_version, spots_annotated, saved_search, cell_feature,
+    model, model_evaluation, and training_run tables and yields the DATABASE_URL.
     Overrides the settings.database_url for tests.
 
     Args:
@@ -62,7 +63,99 @@ async def db_url(postgres_container):
                 file_size_mb REAL NOT NULL,
                 row_counts JSONB NOT NULL,
                 load_duration_seconds INTEGER,
-                success BOOLEAN DEFAULT TRUE
+                success BOOLEAN DEFAULT TRUE,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                updated_at TIMESTAMPTZ DEFAULT NOW()
+            )
+        """)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS spots_annotated (
+                id SERIAL PRIMARY KEY,
+                h3_index VARCHAR(16) NOT NULL,
+                rating INTEGER NOT NULL CHECK (rating >= 0 AND rating <= 5),
+                notes TEXT DEFAULT '',
+                feature_summary JSONB,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                updated_at TIMESTAMPTZ DEFAULT NOW()
+            )
+        """)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS saved_search (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                lat DOUBLE PRECISION NOT NULL,
+                lon DOUBLE PRECISION NOT NULL,
+                radius_m DOUBLE PRECISION NOT NULL,
+                cell_count INTEGER NOT NULL,
+                score_distribution JSONB,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                updated_at TIMESTAMPTZ DEFAULT NOW()
+            )
+        """)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS cell_feature (
+                id SERIAL PRIMARY KEY,
+                h3_index VARCHAR(16) NOT NULL,
+                osm_file_hash TEXT NOT NULL,
+                walls_count INTEGER DEFAULT 0 NOT NULL,
+                walls_total_length_m DOUBLE PRECISION DEFAULT 0.0 NOT NULL,
+                rails_count INTEGER DEFAULT 0 NOT NULL,
+                rails_total_length_m DOUBLE PRECISION DEFAULT 0.0 NOT NULL,
+                gaps_count INTEGER DEFAULT 0 NOT NULL,
+                gaps_total_length_m DOUBLE PRECISION DEFAULT 0.0 NOT NULL,
+                stairs_count INTEGER DEFAULT 0 NOT NULL,
+                stairs_total_length_m DOUBLE PRECISION DEFAULT 0.0 NOT NULL,
+                vaults_count INTEGER DEFAULT 0 NOT NULL,
+                vaults_total_area_m2 DOUBLE PRECISION DEFAULT 0.0 NOT NULL,
+                open_spaces_count INTEGER DEFAULT 0 NOT NULL,
+                open_spaces_total_area_m2 DOUBLE PRECISION DEFAULT 0.0 NOT NULL,
+                h3_res8_parent VARCHAR(15) NOT NULL,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                updated_at TIMESTAMPTZ DEFAULT NOW(),
+                UNIQUE (h3_index, osm_file_hash)
+            )
+        """)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS model (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                model_type TEXT NOT NULL,
+                version INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                feature_list TEXT[],
+                hyperparameters JSONB,
+                is_active BOOLEAN DEFAULT FALSE NOT NULL,
+                status TEXT DEFAULT 'pending' NOT NULL,
+                artifact_path TEXT,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                updated_at TIMESTAMPTZ DEFAULT NOW(),
+                UNIQUE (name, version)
+            )
+        """)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS model_evaluation (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                model_id UUID NOT NULL REFERENCES model(id) ON DELETE CASCADE,
+                accuracy DOUBLE PRECISION,
+                precision DOUBLE PRECISION,
+                recall DOUBLE PRECISION,
+                f1_score DOUBLE PRECISION,
+                roc_auc DOUBLE PRECISION,
+                confusion_matrix JSONB,
+                feature_importance JSONB,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                updated_at TIMESTAMPTZ DEFAULT NOW()
+            )
+        """)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS training_run (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                model_id UUID NOT NULL REFERENCES model(id) ON DELETE CASCADE,
+                evaluation_id UUID REFERENCES model_evaluation(id) ON DELETE SET NULL,
+                train_test_split JSONB,
+                status TEXT DEFAULT 'running' NOT NULL,
+                error_message TEXT,
+                completed_at TIMESTAMPTZ,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                updated_at TIMESTAMPTZ DEFAULT NOW()
             )
         """)
     finally:
@@ -93,7 +186,7 @@ async def postgis_db_url(postgres_container):
     """Create a PostGIS-enabled database for integration tests.
 
     Sets up PostGIS and hstore extensions, plus the planet_osm_* tables
-    and data_version table.
+    and all application tables.
 
     Yields:
         str: Database URL for the PostGIS test container
@@ -116,7 +209,111 @@ async def postgis_db_url(postgres_container):
                 file_size_mb REAL NOT NULL,
                 row_counts JSONB NOT NULL,
                 load_duration_seconds INTEGER,
-                success BOOLEAN DEFAULT TRUE
+                success BOOLEAN DEFAULT TRUE,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                updated_at TIMESTAMPTZ DEFAULT NOW()
+            )
+        """)
+
+        # Create spots_annotated table
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS spots_annotated (
+                id SERIAL PRIMARY KEY,
+                h3_index VARCHAR(16) NOT NULL,
+                rating INTEGER NOT NULL CHECK (rating >= 0 AND rating <= 5),
+                notes TEXT DEFAULT '',
+                feature_summary JSONB,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                updated_at TIMESTAMPTZ DEFAULT NOW()
+            )
+        """)
+
+        # Create saved_search table
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS saved_search (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                lat DOUBLE PRECISION NOT NULL,
+                lon DOUBLE PRECISION NOT NULL,
+                radius_m DOUBLE PRECISION NOT NULL,
+                cell_count INTEGER NOT NULL,
+                score_distribution JSONB,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                updated_at TIMESTAMPTZ DEFAULT NOW()
+            )
+        """)
+
+        # Create cell_feature table
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS cell_feature (
+                id SERIAL PRIMARY KEY,
+                h3_index VARCHAR(16) NOT NULL,
+                osm_file_hash TEXT NOT NULL,
+                walls_count INTEGER DEFAULT 0 NOT NULL,
+                walls_total_length_m DOUBLE PRECISION DEFAULT 0.0 NOT NULL,
+                rails_count INTEGER DEFAULT 0 NOT NULL,
+                rails_total_length_m DOUBLE PRECISION DEFAULT 0.0 NOT NULL,
+                gaps_count INTEGER DEFAULT 0 NOT NULL,
+                gaps_total_length_m DOUBLE PRECISION DEFAULT 0.0 NOT NULL,
+                stairs_count INTEGER DEFAULT 0 NOT NULL,
+                stairs_total_length_m DOUBLE PRECISION DEFAULT 0.0 NOT NULL,
+                vaults_count INTEGER DEFAULT 0 NOT NULL,
+                vaults_total_area_m2 DOUBLE PRECISION DEFAULT 0.0 NOT NULL,
+                open_spaces_count INTEGER DEFAULT 0 NOT NULL,
+                open_spaces_total_area_m2 DOUBLE PRECISION DEFAULT 0.0 NOT NULL,
+                h3_res8_parent VARCHAR(15) NOT NULL,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                updated_at TIMESTAMPTZ DEFAULT NOW(),
+                UNIQUE (h3_index, osm_file_hash)
+            )
+        """)
+
+        # Create model table
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS model (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                model_type TEXT NOT NULL,
+                version INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                feature_list TEXT[],
+                hyperparameters JSONB,
+                is_active BOOLEAN DEFAULT FALSE NOT NULL,
+                status TEXT DEFAULT 'pending' NOT NULL,
+                artifact_path TEXT,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                updated_at TIMESTAMPTZ DEFAULT NOW(),
+                UNIQUE (name, version)
+            )
+        """)
+
+        # Create model_evaluation table
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS model_evaluation (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                model_id UUID NOT NULL REFERENCES model(id) ON DELETE CASCADE,
+                accuracy DOUBLE PRECISION,
+                precision DOUBLE PRECISION,
+                recall DOUBLE PRECISION,
+                f1_score DOUBLE PRECISION,
+                roc_auc DOUBLE PRECISION,
+                confusion_matrix JSONB,
+                feature_importance JSONB,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                updated_at TIMESTAMPTZ DEFAULT NOW()
+            )
+        """)
+
+        # Create training_run table
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS training_run (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                model_id UUID NOT NULL REFERENCES model(id) ON DELETE CASCADE,
+                evaluation_id UUID REFERENCES model_evaluation(id) ON DELETE SET NULL,
+                train_test_split JSONB,
+                status TEXT DEFAULT 'running' NOT NULL,
+                error_message TEXT,
+                completed_at TIMESTAMPTZ,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                updated_at TIMESTAMPTZ DEFAULT NOW()
             )
         """)
 

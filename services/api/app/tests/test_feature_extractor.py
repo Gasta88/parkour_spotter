@@ -1,7 +1,7 @@
 """Unit and integration tests for feature extraction service."""
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 from common.h3_utils import latlng_to_h3
 from common.sql_queries import FEATURE_QUERIES
@@ -19,7 +19,9 @@ class TestFeatureExtractorUnit:
         # Mock engine
         mock_engine = MagicMock(spec=AsyncEngine)
         mock_conn = AsyncMock()
-        mock_conn.execute = AsyncMock(return_value=MagicMock(fetchall=MagicMock(return_value=[])))
+        mock_conn.execute = AsyncMock(
+            return_value=MagicMock(fetchall=MagicMock(return_value=[]))
+        )
         mock_conn.__aenter__ = AsyncMock(return_value=mock_conn)
         mock_conn.__aexit__ = AsyncMock(return_value=None)
         mock_engine.connect = MagicMock(return_value=mock_conn)
@@ -143,7 +145,7 @@ class TestFeatureExtractorIntegration:
         """Test feature extraction with seeded wall data."""
         from sqlalchemy.ext.asyncio import create_async_engine
         from app.services.feature_extractor import FeatureExtractor
-        from common.h3_utils import latlng_to_h3, h3_index_to_bigint
+        from common.h3_utils import h3_index_to_bigint
 
         conn = postgis_connection
 
@@ -166,7 +168,11 @@ class TestFeatureExtractorIntegration:
         """)
 
         # Create engine and extractor
-        db_url = str(conn.get_raw_connection().dsn) if hasattr(conn, 'get_raw_connection') else None
+        db_url = (
+            str(conn.get_raw_connection().dsn)
+            if hasattr(conn, "get_raw_connection")
+            else None
+        )
         # Use the connection's DSN to create an async engine
         # For testcontainers with psycopg driver, we need to convert the URL
         raw_dsn = conn.get_dsn()
@@ -223,10 +229,10 @@ class TestNewOSMCategories:
     def test_new_osm_queries_valid_sql(self) -> None:
         """Test that new OSM queries produce valid SQL."""
         from common.sql_queries import build_feature_query
-        
+
         h3_indices = [123456789, 987654321]
-        
+
         for category in ["bridges", "rocks_stones", "sports_pitches", "good_surfaces"]:
             query = build_feature_query(category, h3_indices, resolution=11)
             # Query should be a SQLAlchemy text object
-            assert hasattr(query, 'compile')
+            assert hasattr(query, "compile")
