@@ -60,6 +60,12 @@ services:
       - "${API_PORT:-8000}:8000"
     volumes:
       - ./common:/app/common
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
   annotator:
@@ -83,6 +89,9 @@ services:
       context: ./services/frontend
       dockerfile: Dockerfile
     container_name: parkour-frontend
+    depends_on:
+      api:
+        condition: service_healthy
     ports:
       - "${FRONTEND_PORT:-8080}:8080"
 
