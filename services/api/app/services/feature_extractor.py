@@ -8,11 +8,8 @@ Usage:
     features = await extractor.extract(lat=45.4064, lon=11.8778, radius_km=5.0)
 """
 
-import asyncpg
-from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from common.db import get_raw_connection
 from common.h3_utils import (
     bigint_to_h3_index,
     get_k_ring,
@@ -167,6 +164,8 @@ def _merge_metrics(existing: dict, new: dict) -> dict:
     """
     return {
         "count": existing.get("count", 0) + new.get("count", 0),
-        "total_length_m": existing.get("total_length_m", 0.0) + new.get("total_length_m", 0.0),
-        "total_area_m2": existing.get("total_area_m2", 0.0) + new.get("total_area_m2", 0.0),
+        "total_length_m": existing.get("total_length_m", 0.0)
+        + new.get("total_length_m", 0.0),
+        "total_area_m2": existing.get("total_area_m2", 0.0)
+        + new.get("total_area_m2", 0.0),
     }

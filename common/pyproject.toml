@@ -8,4 +8,8 @@ dependencies = [
     "asyncpg>=0.30,<0.31",
     "h3>=4.1,<5.0",
     "pydantic-settings>=2.6,<3.0",
+    "alembic>=1.14,<2.0",
 ]
+
+[tool.setuptools.packages.find]
+include = ["common*"]

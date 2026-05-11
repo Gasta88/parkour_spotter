@@ -27,7 +27,7 @@ H3_RESOLUTION = 11
 # Feature extraction queries
 # ---------------------------------------------------------------------------
 # Each query aggregates OSM features into H3 hexagons using h3-pg's
-# h3_latlng_to_cell function. Results are grouped by h3_index and include
+# h3_lat_lng_to_cell function. Results are grouped by h3_index and include
 # count and geometry metrics (length for lines, area for polygons).
 #
 # Parameters:
@@ -53,25 +53,25 @@ QUERY_WALLS = """
 -- Combines line and polygon wall features. Line walls contribute length,
 -- polygon walls contribute area. Both contribute to the count metric.
 SELECT
-    h3_latlng_to_cell(ST_Centroid(way), :resolution) AS h3_index,
+    h3_lat_lng_to_cell(ST_Centroid(way), :resolution) AS h3_index,
     COUNT(*) AS count,
     COALESCE(SUM(ST_Length(way::geography)), 0) AS total_length_m,
     COALESCE(SUM(ST_Area(way::geography)), 0) AS total_area_m2
 FROM planet_osm_line
 WHERE barrier IN ('wall', 'retaining_wall')
-  AND h3_latlng_to_cell(ST_Centroid(way), :resolution) = ANY(:h3_indices)
+  AND h3_lat_lng_to_cell(ST_Centroid(way), :resolution) = ANY(:h3_indices)
 GROUP BY h3_index
 
 UNION ALL
 
 SELECT
-    h3_latlng_to_cell(ST_Centroid(way), :resolution) AS h3_index,
+    h3_lat_lng_to_cell(ST_Centroid(way), :resolution) AS h3_index,
     COUNT(*) AS count,
     0 AS total_length_m,
     COALESCE(SUM(ST_Area(way::geography)), 0) AS total_area_m2
 FROM planet_osm_polygon
 WHERE barrier IN ('wall', 'retaining_wall')
-  AND h3_latlng_to_cell(ST_Centroid(way), :resolution) = ANY(:h3_indices)
+  AND h3_lat_lng_to_cell(ST_Centroid(way), :resolution) = ANY(:h3_indices)
 GROUP BY h3_index
 """
 
@@ -89,25 +89,25 @@ QUERY_STEPS = """
 --
 -- Steps mapped as ways (lines) and as areas (polygons, e.g. wide staircases).
 SELECT
-    h3_latlng_to_cell(ST_Centroid(way), :resolution) AS h3_index,
+    h3_lat_lng_to_cell(ST_Centroid(way), :resolution) AS h3_index,
     COUNT(*) AS count,
     COALESCE(SUM(ST_Length(way::geography)), 0) AS total_length_m,
     COALESCE(SUM(ST_Area(way::geography)), 0) AS total_area_m2
 FROM planet_osm_line
 WHERE highway = 'steps'
-  AND h3_latlng_to_cell(ST_Centroid(way), :resolution) = ANY(:h3_indices)
+  AND h3_lat_lng_to_cell(ST_Centroid(way), :resolution) = ANY(:h3_indices)
 GROUP BY h3_index
 
 UNION ALL
 
 SELECT
-    h3_latlng_to_cell(ST_Centroid(way), :resolution) AS h3_index,
+    h3_lat_lng_to_cell(ST_Centroid(way), :resolution) AS h3_index,
     COUNT(*) AS count,
     0 AS total_length_m,
     COALESCE(SUM(ST_Area(way::geography)), 0) AS total_area_m2
 FROM planet_osm_polygon
 WHERE highway = 'steps'
-  AND h3_latlng_to_cell(ST_Centroid(way), :resolution) = ANY(:h3_indices)
+  AND h3_lat_lng_to_cell(ST_Centroid(way), :resolution) = ANY(:h3_indices)
 GROUP BY h3_index
 """
 
@@ -126,13 +126,13 @@ QUERY_RAILS_FENCES = """
 -- Linear features suitable for balance training and vaulting.
 -- Includes fences, rails, handrails, and guard rails.
 SELECT
-    h3_latlng_to_cell(ST_Centroid(way), :resolution) AS h3_index,
+    h3_lat_lng_to_cell(ST_Centroid(way), :resolution) AS h3_index,
     COUNT(*) AS count,
     COALESCE(SUM(ST_Length(way::geography)), 0) AS total_length_m
 FROM planet_osm_line
 WHERE barrier IN ('fence', 'handrail', 'guard_rail')
    OR railway = 'rail'
-  AND h3_latlng_to_cell(ST_Centroid(way), :resolution) = ANY(:h3_indices)
+  AND h3_lat_lng_to_cell(ST_Centroid(way), :resolution) = ANY(:h3_indices)
 GROUP BY h3_index
 """
 
@@ -151,23 +151,23 @@ QUERY_PLAYGROUNDS = """
 -- Playgrounds mapped as areas (polygons) and as point markers.
 -- Area playgrounds provide total surface area; points provide count only.
 SELECT
-    h3_latlng_to_cell(ST_Centroid(way), :resolution) AS h3_index,
+    h3_lat_lng_to_cell(ST_Centroid(way), :resolution) AS h3_index,
     COUNT(*) AS count,
     COALESCE(SUM(ST_Area(way::geography)), 0) AS total_area_m2
 FROM planet_osm_polygon
 WHERE leisure = 'playground'
-  AND h3_latlng_to_cell(ST_Centroid(way), :resolution) = ANY(:h3_indices)
+  AND h3_lat_lng_to_cell(ST_Centroid(way), :resolution) = ANY(:h3_indices)
 GROUP BY h3_index
 
 UNION ALL
 
 SELECT
-    h3_latlng_to_cell(ST_Centroid(way), :resolution) AS h3_index,
+    h3_lat_lng_to_cell(ST_Centroid(way), :resolution) AS h3_index,
     COUNT(*) AS count,
     0 AS total_area_m2
 FROM planet_osm_point
 WHERE leisure = 'playground'
-  AND h3_latlng_to_cell(ST_Centroid(way), :resolution) = ANY(:h3_indices)
+  AND h3_lat_lng_to_cell(ST_Centroid(way), :resolution) = ANY(:h3_indices)
 GROUP BY h3_index
 """
 
@@ -187,13 +187,13 @@ QUERY_PARKING = """
 -- Parking areas, especially multi-storey and underground structures,
 -- provide columns, ramps, ledges, and varied vertical elements.
 SELECT
-    h3_latlng_to_cell(ST_Centroid(way), :resolution) AS h3_index,
+    h3_lat_lng_to_cell(ST_Centroid(way), :resolution) AS h3_index,
     COUNT(*) AS count,
     COALESCE(SUM(ST_Area(way::geography)), 0) AS total_area_m2
 FROM planet_osm_polygon
 WHERE amenity = 'parking'
    OR parking IN ('multi-storey', 'underground')
-  AND h3_latlng_to_cell(ST_Centroid(way), :resolution) = ANY(:h3_indices)
+  AND h3_lat_lng_to_cell(ST_Centroid(way), :resolution) = ANY(:h3_indices)
 GROUP BY h3_index
 """
 
@@ -211,12 +211,12 @@ QUERY_BENCHES_BLOCKS = """
 --
 -- Benches and concrete blocks serve as precision targets and vault obstacles.
 SELECT
-    h3_latlng_to_cell(ST_Centroid(way), :resolution) AS h3_index,
+    h3_lat_lng_to_cell(ST_Centroid(way), :resolution) AS h3_index,
     COUNT(*) AS count
 FROM planet_osm_point
 WHERE amenity = 'bench'
    OR barrier = 'block'
-  AND h3_latlng_to_cell(ST_Centroid(way), :resolution) = ANY(:h3_indices)
+  AND h3_lat_lng_to_cell(ST_Centroid(way), :resolution) = ANY(:h3_indices)
 GROUP BY h3_index
 """
 
@@ -236,23 +236,23 @@ QUERY_FITNESS_STATIONS = """
 -- Outdoor fitness areas with bars, platforms, and structures useful
 -- for parkour cross-training (muscle-ups, balance, etc.).
 SELECT
-    h3_latlng_to_cell(ST_Centroid(way), :resolution) AS h3_index,
+    h3_lat_lng_to_cell(ST_Centroid(way), :resolution) AS h3_index,
     COUNT(*) AS count
 FROM planet_osm_point
 WHERE leisure = 'fitness_station'
    OR sport = 'fitness'
-  AND h3_latlng_to_cell(ST_Centroid(way), :resolution) = ANY(:h3_indices)
+  AND h3_lat_lng_to_cell(ST_Centroid(way), :resolution) = ANY(:h3_indices)
 GROUP BY h3_index
 
 UNION ALL
 
 SELECT
-    h3_latlng_to_cell(ST_Centroid(way), :resolution) AS h3_index,
+    h3_lat_lng_to_cell(ST_Centroid(way), :resolution) AS h3_index,
     COUNT(*) AS count
 FROM planet_osm_polygon
 WHERE leisure = 'fitness_station'
    OR sport = 'fitness'
-  AND h3_latlng_to_cell(ST_Centroid(way), :resolution) = ANY(:h3_indices)
+  AND h3_lat_lng_to_cell(ST_Centroid(way), :resolution) = ANY(:h3_indices)
 GROUP BY h3_index
 """
 
@@ -272,31 +272,31 @@ QUERY_PRIVATE_ACCESS = """
 -- Features marked as private or no-access reduce the parkour suitability
 -- score since they are not legally accessible for training.
 SELECT
-    h3_latlng_to_cell(ST_Centroid(way), :resolution) AS h3_index,
+    h3_lat_lng_to_cell(ST_Centroid(way), :resolution) AS h3_index,
     COUNT(*) AS count
 FROM planet_osm_point
 WHERE access IN ('private', 'no')
-  AND h3_latlng_to_cell(ST_Centroid(way), :resolution) = ANY(:h3_indices)
+  AND h3_lat_lng_to_cell(ST_Centroid(way), :resolution) = ANY(:h3_indices)
 GROUP BY h3_index
 
 UNION ALL
 
 SELECT
-    h3_latlng_to_cell(ST_Centroid(way), :resolution) AS h3_index,
+    h3_lat_lng_to_cell(ST_Centroid(way), :resolution) AS h3_index,
     COUNT(*) AS count
 FROM planet_osm_line
 WHERE access IN ('private', 'no')
-  AND h3_latlng_to_cell(ST_Centroid(way), :resolution) = ANY(:h3_indices)
+  AND h3_lat_lng_to_cell(ST_Centroid(way), :resolution) = ANY(:h3_indices)
 GROUP BY h3_index
 
 UNION ALL
 
 SELECT
-    h3_latlng_to_cell(ST_Centroid(way), :resolution) AS h3_index,
+    h3_lat_lng_to_cell(ST_Centroid(way), :resolution) AS h3_index,
     COUNT(*) AS count
 FROM planet_osm_polygon
 WHERE access IN ('private', 'no')
-  AND h3_latlng_to_cell(ST_Centroid(way), :resolution) = ANY(:h3_indices)
+  AND h3_lat_lng_to_cell(ST_Centroid(way), :resolution) = ANY(:h3_indices)
 GROUP BY h3_index
 """
 
@@ -315,27 +315,27 @@ QUERY_BRIDGES = """
 -- Bridges offer elevated walkways, railings, and structural elements
 -- suitable for parkour training.
 SELECT
-    h3_latlng_to_cell(ST_Centroid(way), :resolution) AS h3_index,
+    h3_lat_lng_to_cell(ST_Centroid(way), :resolution) AS h3_index,
     COUNT(*) AS count,
     COALESCE(SUM(ST_Length(way::geography)), 0) AS total_length_m,
     0 AS total_area_m2
 FROM planet_osm_line
 WHERE man_made = 'bridge'
    OR bridge = 'yes'
-  AND h3_latlng_to_cell(ST_Centroid(way), :resolution) = ANY(:h3_indices)
+  AND h3_lat_lng_to_cell(ST_Centroid(way), :resolution) = ANY(:h3_indices)
 GROUP BY h3_index
 
 UNION ALL
 
 SELECT
-    h3_latlng_to_cell(ST_Centroid(way), :resolution) AS h3_index,
+    h3_lat_lng_to_cell(ST_Centroid(way), :resolution) AS h3_index,
     COUNT(*) AS count,
     0 AS total_length_m,
     COALESCE(SUM(ST_Area(way::geography)), 0) AS total_area_m2
 FROM planet_osm_polygon
 WHERE man_made = 'bridge'
    OR bridge = 'yes'
-  AND h3_latlng_to_cell(ST_Centroid(way), :resolution) = ANY(:h3_indices)
+  AND h3_lat_lng_to_cell(ST_Centroid(way), :resolution) = ANY(:h3_indices)
 GROUP BY h3_index
 """
 
@@ -354,23 +354,23 @@ QUERY_ROCKS_STONES = """
 -- Natural rock formations and large stones offer climbing and balancing
 -- opportunities with varied textures and heights.
 SELECT
-    h3_latlng_to_cell(ST_Centroid(way), :resolution) AS h3_index,
+    h3_lat_lng_to_cell(ST_Centroid(way), :resolution) AS h3_index,
     COUNT(*) AS count,
     COALESCE(SUM(ST_Area(way::geography)), 0) AS total_area_m2
 FROM planet_osm_polygon
 WHERE natural IN ('stone', 'rock')
-  AND h3_latlng_to_cell(ST_Centroid(way), :resolution) = ANY(:h3_indices)
+  AND h3_lat_lng_to_cell(ST_Centroid(way), :resolution) = ANY(:h3_indices)
 GROUP BY h3_index
 
 UNION ALL
 
 SELECT
-    h3_latlng_to_cell(ST_Centroid(way), :resolution) AS h3_index,
+    h3_lat_lng_to_cell(ST_Centroid(way), :resolution) AS h3_index,
     COUNT(*) AS count,
     0 AS total_area_m2
 FROM planet_osm_point
 WHERE natural IN ('stone', 'rock')
-  AND h3_latlng_to_cell(ST_Centroid(way), :resolution) = ANY(:h3_indices)
+  AND h3_lat_lng_to_cell(ST_Centroid(way), :resolution) = ANY(:h3_indices)
 GROUP BY h3_index
 """
 
@@ -389,13 +389,13 @@ QUERY_SPORTS_PITCHES = """
 -- Sports courts and pitches provide marked lines, low walls, basketball hoops,
 -- goal posts, and varied surfaces for parkour training.
 SELECT
-    h3_latlng_to_cell(ST_Centroid(way), :resolution) AS h3_index,
+    h3_lat_lng_to_cell(ST_Centroid(way), :resolution) AS h3_index,
     COUNT(*) AS count,
     COALESCE(SUM(ST_Area(way::geography)), 0) AS total_area_m2
 FROM planet_osm_polygon
 WHERE leisure = 'pitch'
    OR sport IN ('basketball', 'football', 'tennis', 'volleyball', 'handball', 'futsal')
-  AND h3_latlng_to_cell(ST_Centroid(way), :resolution) = ANY(:h3_indices)
+  AND h3_lat_lng_to_cell(ST_Centroid(way), :resolution) = ANY(:h3_indices)
 GROUP BY h3_index
 """
 
@@ -415,31 +415,31 @@ QUERY_GOOD_SURFACES = """
 -- Features with smooth, flat surfaces are safer for parkour training.
 -- This category acts as a bonus modifier on the final score.
 SELECT
-    h3_latlng_to_cell(ST_Centroid(way), :resolution) AS h3_index,
+    h3_lat_lng_to_cell(ST_Centroid(way), :resolution) AS h3_index,
     COUNT(*) AS count
 FROM planet_osm_point
 WHERE surface IN ('paving_stones', 'concrete', 'asphalt', 'wood', 'paved')
-  AND h3_latlng_to_cell(ST_Centroid(way), :resolution) = ANY(:h3_indices)
+  AND h3_lat_lng_to_cell(ST_Centroid(way), :resolution) = ANY(:h3_indices)
 GROUP BY h3_index
 
 UNION ALL
 
 SELECT
-    h3_latlng_to_cell(ST_Centroid(way), :resolution) AS h3_index,
+    h3_lat_lng_to_cell(ST_Centroid(way), :resolution) AS h3_index,
     COUNT(*) AS count
 FROM planet_osm_line
 WHERE surface IN ('paving_stones', 'concrete', 'asphalt', 'wood', 'paved')
-  AND h3_latlng_to_cell(ST_Centroid(way), :resolution) = ANY(:h3_indices)
+  AND h3_lat_lng_to_cell(ST_Centroid(way), :resolution) = ANY(:h3_indices)
 GROUP BY h3_index
 
 UNION ALL
 
 SELECT
-    h3_latlng_to_cell(ST_Centroid(way), :resolution) AS h3_index,
+    h3_lat_lng_to_cell(ST_Centroid(way), :resolution) AS h3_index,
     COUNT(*) AS count
 FROM planet_osm_polygon
 WHERE surface IN ('paving_stones', 'concrete', 'asphalt', 'wood', 'paved')
-  AND h3_latlng_to_cell(ST_Centroid(way), :resolution) = ANY(:h3_indices)
+  AND h3_lat_lng_to_cell(ST_Centroid(way), :resolution) = ANY(:h3_indices)
 GROUP BY h3_index
 """
 

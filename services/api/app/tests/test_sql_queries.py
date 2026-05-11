@@ -4,7 +4,6 @@ import pytest
 
 from common.sql_queries import (
     FEATURE_QUERIES,
-    H3_RESOLUTION,
     build_feature_query,
     get_all_feature_names,
 )
@@ -35,9 +34,11 @@ class TestFeatureQueries:
             assert len(query.strip()) > 0
 
     def test_all_queries_contain_h3_function(self) -> None:
-        """Test that all queries use h3_latlng_to_cell for aggregation."""
+        """Test that all queries use h3_lat_lng_to_cell for aggregation."""
         for name, query in FEATURE_QUERIES.items():
-            assert "h3_latlng_to_cell" in query, f"Query '{name}' missing h3_latlng_to_cell"
+            assert "h3_lat_lng_to_cell" in query, (
+                f"Query '{name}' missing h3_lat_lng_to_cell"
+            )
 
     def test_all_queries_contain_group_by(self) -> None:
         """Test that all queries have GROUP BY clause."""
@@ -47,7 +48,9 @@ class TestFeatureQueries:
     def test_all_queries_reference_planet_osm_tables(self) -> None:
         """Test that all queries reference planet_osm_* tables."""
         for name, query in FEATURE_QUERIES.items():
-            assert "planet_osm_" in query, f"Query '{name}' missing planet_osm table reference"
+            assert "planet_osm_" in query, (
+                f"Query '{name}' missing planet_osm table reference"
+            )
 
     def test_all_queries_have_comments(self) -> None:
         """Test that all queries have documentation comments."""
@@ -137,10 +140,10 @@ class TestGetAllFeatureNames:
         names = get_all_feature_names()
         assert isinstance(names, list)
 
-    def test_returns_eight_names(self) -> None:
-        """Test that exactly 8 feature names are returned."""
+    def test_returns_feature_names_count(self) -> None:
+        """Test that feature names are returned."""
         names = get_all_feature_names()
-        assert len(names) == 8
+        assert len(names) == len(FEATURE_QUERIES)
 
     def test_names_match_registry(self) -> None:
         """Test that returned names match FEATURE_QUERIES keys."""

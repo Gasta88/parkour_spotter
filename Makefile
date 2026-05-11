@@ -1,4 +1,4 @@
-.PHONY: build up down test lint load-osm load-osm-force load-local status clean-osm switch-city seed clean logs logs-db logs-api logs-annotator logs-loader logs-frontend
+.PHONY: build up down test lint load-osm load-osm-force load-local status clean-osm switch-city seed clean logs logs-db logs-api logs-annotator logs-loader logs-frontend shell-db
 
 build:
 	docker compose build
@@ -68,3 +68,5 @@ logs-annotator:
 logs-frontend:
 	docker compose logs -f frontend
 
+shell-db:
+	docker-compose exec postgis psql -U parkour -d parkour

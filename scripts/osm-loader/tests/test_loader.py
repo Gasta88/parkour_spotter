@@ -56,7 +56,7 @@ def test_entrypoint_force_reload_override():
     env = os.environ.copy()
     env["FORCE_RELOAD"] = "true"
     env["REFRESH_INTERVAL_HOURS"] = "24"
-    
+
     assert env["FORCE_RELOAD"] == "true"
 
 
@@ -65,7 +65,7 @@ def test_entrypoint_row_count_validation():
     row_counts = {"point": 100, "line": 50, "polygon": 25}
     total = sum(row_counts.values())
     assert total > 0, "Load validation should pass with non-zero rows"
-    
+
     empty_counts = {"point": 0, "line": 0, "polygon": 0}
     total_empty = sum(empty_counts.values())
     assert total_empty == 0, "Empty tables should fail validation"
@@ -74,21 +74,21 @@ def test_entrypoint_row_count_validation():
 def test_data_version_model_serialization():
     """Test DataVersion Pydantic model serialization."""
     from datetime import datetime, timezone
-    
+
     try:
         from pydantic import BaseModel
-        
+
         class DataVersion(BaseModel):
             loaded_at: datetime
             osm_source_url: str
             file_size_mb: float
-        
+
         dv = DataVersion(
             loaded_at=datetime.now(timezone.utc),
             osm_source_url="https://example.com/data.osm.pbf",
             file_size_mb=12.5,
         )
-        
+
         data = dv.model_dump()
         assert "loaded_at" in data
         assert "osm_source_url" in data
@@ -104,43 +104,47 @@ def test_analyze_response_with_optional_data_version():
         from datetime import datetime, timezone
         from typing import Optional
         from pydantic import BaseModel
-        
+
         class Centroid(BaseModel):
             lat: float
             lon: float
-        
+
         class HexCell(BaseModel):
             h3_index: str
             score: float
             centroid: Centroid
-        
+
         class DataVersion(BaseModel):
             loaded_at: datetime
             osm_source_url: str
             file_size_mb: float
-        
+
         class AnalyzeResponse(BaseModel):
             cells: list[HexCell]
             data_version: Optional[DataVersion] = None
             query_time_ms: int
-        
+
         response_with_version = AnalyzeResponse(
-            cells=[HexCell(
-                h3_index="8b1fb46622dffff",
-                score=0.75,
-                centroid=Centroid(lat=45.4064, lon=11.8778)
-            )],
+            cells=[
+                HexCell(
+                    h3_index="8b1fb46622dffff",
+                    score=0.75,
+                    centroid=Centroid(lat=45.4064, lon=11.8778),
+                )
+            ],
             data_version=None,
             query_time_ms=45,
         )
         assert response_with_version.data_version is None
-        
+
         response_without_version = AnalyzeResponse(
-            cells=[HexCell(
-                h3_index="8b1fb46622dffff",
-                score=0.75,
-                centroid=Centroid(lat=45.4064, lon=11.8778)
-            )],
+            cells=[
+                HexCell(
+                    h3_index="8b1fb46622dffff",
+                    score=0.75,
+                    centroid=Centroid(lat=45.4064, lon=11.8778),
+                )
+            ],
             data_version=DataVersion(
                 loaded_at=datetime.now(timezone.utc),
                 osm_source_url="https://example.com/data.osm.pbf",
@@ -215,7 +219,9 @@ def test_download_skipped_when_local_file_provided():
             # Error
             pass
 
-        assert download_was_called is False, "Download should be skipped when local file exists"
+        assert download_was_called is False, (
+            "Download should be skipped when local file exists"
+        )
 
 
 def test_fallback_to_url_when_no_local_file():
@@ -245,4 +251,6 @@ def test_error_when_neither_local_file_nor_url():
     else:
         error_occurred = False
 
-    assert error_occurred is True, "Should error when neither OSM_LOCAL_FILE nor OSM_URL is set"
+    assert error_occurred is True, (
+        "Should error when neither OSM_LOCAL_FILE nor OSM_URL is set"
+    )

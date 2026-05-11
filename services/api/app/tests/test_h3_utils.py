@@ -1,9 +1,5 @@
 """Unit tests for H3 utilities."""
 
-import math
-
-import pytest
-
 from common.h3_utils import (
     H3_RESOLUTION,
     bigint_to_h3_index,

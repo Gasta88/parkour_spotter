@@ -13,6 +13,7 @@ from app.main import create_app
 def client(postgis_db_url, monkeypatch):
     """Create a test client with PostGIS database URL configured."""
     from app.config import settings
+
     monkeypatch.setattr(settings, "database_url", postgis_db_url)
 
     app_module.app = create_app()
@@ -120,12 +121,16 @@ def test_analyze_empty_db_returns_none_data_version(client) -> None:
     assert data["data_version"] is None
 
 
-def test_analyze_single_version_returns_correct_metadata(client, postgis_db_url) -> None:
+def test_analyze_single_version_returns_correct_metadata(
+    client, postgis_db_url
+) -> None:
     """Test that POST /analyze returns correct data_version metadata with single row."""
+
     async def insert_data():
         conn = await asyncpg.connect(postgis_db_url)
         try:
             from datetime import datetime, timezone
+
             inserted_at = datetime.now(timezone.utc)
             await conn.execute(
                 """
@@ -136,7 +141,7 @@ def test_analyze_single_version_returns_correct_metadata(client, postgis_db_url)
                 "https://example.com/data.osm.pbf",
                 "abc123hash",
                 12.5,
-                '{"nodes": 1000, "ways": 500}'
+                '{"nodes": 1000, "ways": 500}',
             )
         finally:
             await conn.close()
@@ -178,7 +183,7 @@ def test_analyze_multiple_versions_returns_latest(client, postgis_db_url) -> Non
                 "https://example.com/old.osm.pbf",
                 "oldhash",
                 10.0,
-                '{"nodes": 500, "ways": 250}'
+                '{"nodes": 500, "ways": 250}',
             )
 
             await conn.execute(
@@ -190,7 +195,7 @@ def test_analyze_multiple_versions_returns_latest(client, postgis_db_url) -> Non
                 "https://example.com/new.osm.pbf",
                 "newhash",
                 15.0,
-                '{"nodes": 1500, "ways": 750}'
+                '{"nodes": 1500, "ways": 750}',
             )
         finally:
             await conn.close()
@@ -213,7 +218,9 @@ def test_analyze_multiple_versions_returns_latest(client, postgis_db_url) -> Non
     assert data["data_version"]["file_size_mb"] == 15.0
 
 
-def test_analyze_idempotency_skips_reload_within_interval(client, postgis_db_url) -> None:
+def test_analyze_idempotency_skips_reload_within_interval(
+    client, postgis_db_url
+) -> None:
     """Test that data_version query returns same hash within refresh interval (idempotency)."""
     from datetime import datetime, timezone
 
@@ -230,7 +237,7 @@ def test_analyze_idempotency_skips_reload_within_interval(client, postgis_db_url
                 "https://example.com/data.osm.pbf",
                 "same_hash_123",
                 12.5,
-                '{"nodes": 1000, "ways": 500}'
+                '{"nodes": 1000, "ways": 500}',
             )
         finally:
             await conn.close()
@@ -263,11 +270,14 @@ def test_analyze_idempotency_skips_reload_within_interval(client, postgis_db_url
 
     assert data1["data_version"] is not None
     assert data2["data_version"] is not None
-    assert data1["data_version"]["osm_file_hash"] == data2["data_version"]["osm_file_hash"]
+    assert (
+        data1["data_version"]["osm_file_hash"] == data2["data_version"]["osm_file_hash"]
+    )
 
 
 def test_analyze_with_seeded_osm_data(client, postgis_db_url) -> None:
     """Test that POST /analyze returns cells with feature breakdown when OSM data exists."""
+
     async def seed_data():
         conn = await asyncpg.connect(postgis_db_url)
         try:
@@ -313,8 +323,10 @@ def test_analyze_with_seeded_osm_data(client, postgis_db_url) -> None:
 
     # Check that at least some cells have features
     cells_with_features = [
-        c for c in data["cells"]
-        if c.get("features") and any(f.get("count", 0) > 0 for f in c["features"].values())
+        c
+        for c in data["cells"]
+        if c.get("features")
+        and any(f.get("count", 0) > 0 for f in c["features"].values())
     ]
     assert len(cells_with_features) > 0
 

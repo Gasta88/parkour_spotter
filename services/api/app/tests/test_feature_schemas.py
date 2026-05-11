@@ -186,7 +186,6 @@ class TestAnalyzeResponse:
 
     def test_response_serialization(self) -> None:
         """Test AnalyzeResponse serializes to JSON-compatible dict."""
-        from datetime import datetime, timezone
 
         resp = AnalyzeResponse(
             cells=[

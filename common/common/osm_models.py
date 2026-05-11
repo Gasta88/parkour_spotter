@@ -9,7 +9,7 @@ Tables:
     - planet_osm_polygon: OSM polygon features (closed ways / multipolygons)
 """
 
-from sqlalchemy import Column, Integer, String, Text
+from sqlalchemy import Column, Integer, String
 from sqlalchemy.orm import Mapped
 
 from common.models import Base
