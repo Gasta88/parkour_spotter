@@ -45,6 +45,20 @@ services:
       - ./data:/osm-data
     restart: "no"
 
+  migrate:
+    build:
+      context: .
+      dockerfile: common/Dockerfile
+    container_name: parkour-migrate
+    depends_on:
+      postgis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-parkour}:${POSTGRES_PASSWORD:-parkour}@postgis:5432/${POSTGRES_DB:-parkour}
+    working_dir: /app/common
+    command: alembic upgrade head
+    restart: "no"
+
   api:
     build:
       context: .
@@ -53,6 +67,8 @@ services:
     depends_on:
       postgis:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-parkour}:${POSTGRES_PASSWORD:-parkour}@postgis:5432/${POSTGRES_DB:-parkour}
       H3_RESOLUTION: ${H3_RESOLUTION:-11}
@@ -76,6 +92,8 @@ services:
     depends_on:
       postgis:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-parkour}:${POSTGRES_PASSWORD:-parkour}@postgis:5432/${POSTGRES_DB:-parkour}
     ports:
