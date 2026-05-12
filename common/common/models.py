@@ -78,12 +78,15 @@ class SpotAnnotation(Base, TimestampMixin):
     rating: Mapped[int] = mapped_column(Integer, nullable=False)
     notes: Mapped[str] = mapped_column(Text, default="", nullable=False)
     feature_summary: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    human_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    features: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
     __table_args__ = (
         CheckConstraint(
             "rating >= 0 AND rating <= 5", name="ck_spots_annotated_rating_range"
         ),
         Index("ix_spots_annotated_h3_index", "h3_index"),
+        UniqueConstraint("h3_index", name="uq_spots_annotated_h3_index"),
     )
 
 

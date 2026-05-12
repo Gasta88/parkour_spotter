@@ -71,10 +71,12 @@ async def db_url(postgres_container):
         await conn.execute("""
             CREATE TABLE IF NOT EXISTS spots_annotated (
                 id SERIAL PRIMARY KEY,
-                h3_index VARCHAR(16) NOT NULL,
+                h3_index VARCHAR(16) NOT NULL UNIQUE,
                 rating INTEGER NOT NULL CHECK (rating >= 0 AND rating <= 5),
                 notes TEXT DEFAULT '',
                 feature_summary JSONB,
+                human_score DOUBLE PRECISION,
+                features JSONB,
                 created_at TIMESTAMPTZ DEFAULT NOW(),
                 updated_at TIMESTAMPTZ DEFAULT NOW()
             )
@@ -219,10 +221,12 @@ async def postgis_db_url(postgres_container):
         await conn.execute("""
             CREATE TABLE IF NOT EXISTS spots_annotated (
                 id SERIAL PRIMARY KEY,
-                h3_index VARCHAR(16) NOT NULL,
+                h3_index VARCHAR(16) NOT NULL UNIQUE,
                 rating INTEGER NOT NULL CHECK (rating >= 0 AND rating <= 5),
                 notes TEXT DEFAULT '',
                 feature_summary JSONB,
+                human_score DOUBLE PRECISION,
+                features JSONB,
                 created_at TIMESTAMPTZ DEFAULT NOW(),
                 updated_at TIMESTAMPTZ DEFAULT NOW()
             )

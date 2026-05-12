@@ -41,7 +41,7 @@ endif
 	OSM_URL=$(OSM_URL) docker compose up --build osm-loader
 
 seed:
-	@echo "Database seeding not yet implemented"
+	docker compose exec -T postgis psql -U parkour -d parkour < scripts/seed-data.sql
 
 clean:
 	docker compose down -v
