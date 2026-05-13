@@ -52,6 +52,62 @@
         .analyze-btn:hover {
             background: #2980b9;
         }
+        .legend {
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid #eee;
+        }
+        .legend-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 0.4rem;
+        }
+        .legend-gradient {
+            height: 12px;
+            border-radius: 2px;
+            background: linear-gradient(to right, #2ecc71, #f1c40f, #e67e22, #e74c3c, #c0392b);
+        }
+        .legend-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: #888;
+            margin-top: 0.2rem;
+        }
+        .status-text {
+            margin-top: 0.5rem;
+            font-size: 0.85rem;
+            color: #333;
+        }
+        .gsv-link {
+            color: #3498db;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+        .gsv-link:hover {
+            color: #2980b9;
+        }
+        .score-filter {
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid #eee;
+        }
+        .score-filter label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: block;
+            margin-bottom: 0.4rem;
+        }
+        .score-slider {
+            width: 100%;
+            cursor: pointer;
+        }
+        .score-value {
+            font-size: 0.8rem;
+            color: #666;
+            text-align: center;
+            margin-top: 0.2rem;
+        }
     </style>
 </head>
 <body>
@@ -60,7 +116,21 @@
         <h2>Parkour Spotter</h2>
         <p>Click anywhere on the map to analyze the area for parkour spots.</p>
         <button class="analyze-btn" onclick="analyzeCenter()">Analyze Center</button>
+        <div id="status" class="status-text"></div>
         <div id="results"></div>
+        <div id="legend" class="legend" style="display: none;">
+            <div class="legend-title">Score</div>
+            <div class="legend-gradient"></div>
+            <div class="legend-labels">
+                <span>Low</span>
+                <span>High</span>
+            </div>
+        </div>
+        <div id="score-filter" class="score-filter" style="display: none;">
+            <label for="min-score">Min Score: <span id="min-score-value">0.00</span></label>
+            <input type="range" id="min-score" class="score-slider" min="0" max="1" step="0.01" value="0">
+            <div class="score-value" id="visible-count"></div>
+        </div>
     </div>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
             integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
@@ -74,6 +144,8 @@
 
         let marker;
         let hexLayer;
+        let lastData = null;
+        let minScoreThreshold = 0;
 
         map.on('click', function(e) {
             const { lat, lng } = e.latlng;
@@ -87,7 +159,10 @@
             analyzeLocation(lat, lng);
         });
 
-        async function analyzeLocation(lat, lon, radius_km = 5) {
+        async function analyzeLocation(lat, lon, radius_km = 2) {
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = 'Analyzing...';
+            
             try {
                 const response = await fetch('/api/analyze', {
                     method: 'POST',
@@ -103,10 +178,17 @@
 
                 if (response.ok) {
                     const data = await response.json();
+                    lastData = data;
                     displayResults(data);
+                    statusEl.textContent = `Found ${data.cells.length} cells (${data.query_time_ms}ms)`;
+                    document.getElementById('score-filter').style.display = 'block';
+                    updateVisibleCount();
+                } else {
+                    statusEl.textContent = 'Analysis failed';
                 }
             } catch (error) {
                 console.error('Error analyzing location:', error);
+                statusEl.textContent = 'Error analyzing location';
             }
         }
 
@@ -115,29 +197,145 @@
             analyzeLocation(center.lat, center.lng);
         }
 
+        const scoreSlider = document.getElementById('min-score');
+        scoreSlider.addEventListener('input', function() {
+            minScoreThreshold = parseFloat(this.value);
+            document.getElementById('min-score-value').textContent = minScoreThreshold.toFixed(2);
+            if (lastData) {
+                displayResults(lastData);
+                updateVisibleCount();
+            }
+        });
+
+        function updateVisibleCount() {
+            if (!lastData) return;
+            const visible = lastData.cells.filter(c => c.score >= minScoreThreshold).length;
+            const total = lastData.cells.length;
+            document.getElementById('visible-count').textContent = `${visible} of ${total} cells shown`;
+        }
+
+        function buildGSVUrl(lat, lng) {
+            return `https://www.google.com/maps/@${lat},${lng},3a,75y,90h,90t/data=!3m7!1e1`;
+        }
+
+        function scoreToColor(score) {
+            const stops = [
+                { score: 0.0, r: 46, g: 204, b: 113 },
+                { score: 0.25, r: 241, g: 196, b: 15 },
+                { score: 0.5, r: 230, g: 126, b: 34 },
+                { score: 0.75, r: 231, g: 76, b: 60 },
+                { score: 1.0, r: 192, g: 57, b: 43 },
+            ];
+
+            score = Math.max(0, Math.min(1, score));
+
+            let lower = stops[0];
+            let upper = stops[stops.length - 1];
+
+            for (let i = 0; i < stops.length - 1; i++) {
+                if (score >= stops[i].score && score <= stops[i + 1].score) {
+                    lower = stops[i];
+                    upper = stops[i + 1];
+                    break;
+                }
+            }
+
+            const range = upper.score - lower.score;
+            const t = range === 0 ? 0 : (score - lower.score) / range;
+
+            const r = Math.round(lower.r + t * (upper.r - lower.r));
+            const g = Math.round(lower.g + t * (upper.g - lower.g));
+            const b = Math.round(lower.b + t * (upper.b - lower.b));
+
+            return `rgb(${r}, ${g}, ${b})`;
+        }
+
+        function h3CellToPolygon(lat, lng, radiusM = 25) {
+            const vertices = [];
+            for (let i = 0; i < 6; i++) {
+                const angle = (Math.PI / 3) * i;
+                const dLat = (radiusM / 111320) * Math.cos(angle);
+                const dLng = (radiusM / (111320 * Math.cos(lat * Math.PI / 180))) * Math.sin(angle);
+                vertices.push([lat + dLat, lng + dLng]);
+            }
+            return vertices;
+        }
+
+        function buildPopupContent(cell) {
+            const { lat, lon } = cell.centroid;
+            const gsvUrl = buildGSVUrl(lat, lon);
+            
+            let html = `<div style="min-width: 150px;">`;
+            html += `<strong>Score: ${cell.score.toFixed(2)}</strong><br>`;
+            html += `<small>${lat.toFixed(5)}, ${lon.toFixed(5)}</small><br><br>`;
+            
+            if (cell.features && Object.keys(cell.features).length > 0) {
+                const sorted = Object.entries(cell.features)
+                    .sort((a, b) => (b[1].count || 0) - (a[1].count || 0))
+                    .slice(0, 3);
+                
+                html += '<strong>Features:</strong><br>';
+                for (const [name, metrics] of sorted) {
+                    html += `${name}: ${metrics.count}<br>`;
+                }
+                html += '<br>';
+            }
+            
+            html += `<a href="${gsvUrl}" target="_blank" rel="noopener noreferrer" class="gsv-link">View in Street View</a>`;
+            html += `</div>`;
+            
+            return html;
+        }
+
         function displayResults(data) {
             const resultsDiv = document.getElementById('results');
+            const legendEl = document.getElementById('legend');
             
             if (hexLayer) {
                 map.removeLayer(hexLayer);
             }
 
-            let html = '<h3>Results</h3>';
-            html += `<p>Data version: ${data.data_version}</p>`;
-            html += `<p>Query time: ${data.query_time_ms}ms</p>`;
-            html += '<ul>';
-            
-            data.cells.forEach(cell => {
-                html += `<li>
-                    <strong>${cell.h3_index}</strong><br>
-                    Score: ${cell.score}<br>
-                    Lat: ${cell.centroid.lat.toFixed(4)}, 
-                    Lon: ${cell.centroid.lon.toFixed(4)}
-                </li>`;
-            });
-            
-            html += '</ul>';
-            resultsDiv.innerHTML = html;
+            if (!data.cells || data.cells.length === 0) {
+                resultsDiv.innerHTML = '<p>No cells found</p>';
+                legendEl.style.display = 'none';
+                return;
+            }
+
+            const filteredCells = data.cells.filter(c => c.score >= minScoreThreshold);
+
+            if (filteredCells.length === 0) {
+                resultsDiv.innerHTML = `<p>No cells above ${minScoreThreshold.toFixed(2)}</p>`;
+                return;
+            }
+
+            hexLayer = L.layerGroup();
+
+            for (const cell of filteredCells) {
+                const { lat, lon } = cell.centroid;
+                const polygon = h3CellToPolygon(lat, lon);
+                const color = scoreToColor(cell.score);
+                const gsvUrl = buildGSVUrl(lat, lon);
+
+                const polygonLayer = L.polygon(polygon, {
+                    color: color,
+                    fillColor: color,
+                    fillOpacity: 0.6,
+                    weight: 1,
+                });
+
+                polygonLayer.bindPopup(buildPopupContent(cell));
+
+                polygonLayer.on('click', function() {
+                    window.open(gsvUrl, '_blank', 'noopener,noreferrer');
+                });
+
+                hexLayer.addLayer(polygonLayer);
+            }
+
+            hexLayer.addTo(map);
+            legendEl.style.display = 'block';
+
+            resultsDiv.innerHTML = `<p>${data.cells.length} cells analyzed</p>`;
         }
 
         console.log('Parkour Spotter Frontend loaded');

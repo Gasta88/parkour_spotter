@@ -6,9 +6,10 @@ import h3
 
 H3_RESOLUTION = 11
 
-# Approximate average edge length of an H3 cell at resolution 11 in meters.
+# Approximate average diameter of an H3 cell at resolution 11 in meters.
 # Used to convert a radius in km to a k-ring depth.
-_AVG_EDGE_LENGTH_M = 25.0
+# Diameter is roughly 2x the edge length (~50m vs ~25m edge).
+_AVG_DIAMETER_M = 50.0
 
 
 def get_h3_resolution() -> int:
@@ -67,9 +68,9 @@ def get_k_ring(
     if resolution is None:
         resolution = H3_RESOLUTION
 
-    # Convert radius to k-ring depth using average cell edge length
+    # Convert radius to k-ring depth using average cell diameter
     radius_m = radius_km * 1000.0
-    k = max(1, math.ceil(radius_m / _AVG_EDGE_LENGTH_M))
+    k = max(1, math.ceil(radius_m / _AVG_DIAMETER_M))
 
     # grid_disk returns all cells within k steps of the center cell
     # Wrap in set() for consistent return type across h3 library versions
