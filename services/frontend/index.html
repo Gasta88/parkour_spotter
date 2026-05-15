@@ -267,6 +267,7 @@
             
             let html = `<div style="min-width: 150px;">`;
             html += `<strong>Score: ${cell.score.toFixed(2)}</strong><br>`;
+            html += `<strong>H3: ${cell.h3_index}</strong><br>`;
             html += `<small>${lat.toFixed(5)}, ${lon.toFixed(5)}</small><br><br>`;
             
             if (cell.features && Object.keys(cell.features).length > 0) {
@@ -324,6 +325,7 @@
                 });
 
                 let tooltipContent = `<div><strong>Score:</strong> ${cell.score.toFixed(2)}</div>`;
+                tooltipContent += `<div><strong>H3:</strong> ${cell.h3_index}</div>`;
                 tooltipContent += `<div>${lat.toFixed(5)}, ${lon.toFixed(5)}</div>`;
                 
                 if (cell.features && Object.keys(cell.features).length > 0) {

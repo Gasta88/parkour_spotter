@@ -1,4 +1,4 @@
-.PHONY: build up down test lint load-osm load-osm-force load-local status clean-osm switch-city seed clean logs logs-db logs-api logs-annotator logs-loader logs-frontend shell-db
+.PHONY: build up down test lint load-osm load-osm-force load-local status clean-osm switch-city seed clean logs logs-db logs-api logs-annotator logs-loader logs-frontend shell-db annotate
 
 build:
 	docker compose build
@@ -39,6 +39,10 @@ clean-osm:
 
 seed:
 	docker compose exec -T postgis psql -U parkour -d parkour < scripts/seed-data.sql
+
+annotate:
+	@echo "Opening annotator UI at http://localhost:8001"
+	@open http://localhost:8001 || xdg-open http://localhost:8001 || echo "Annotator UI available at http://localhost:8001"
 
 clean:
 	docker compose down -v

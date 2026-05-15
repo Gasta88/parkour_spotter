@@ -35,6 +35,12 @@ def create_app() -> FastAPI:
     app.include_router(spots.router)
 
     if STATIC_DIR.exists():
+        from fastapi.responses import FileResponse
+
+        @app.get("/")
+        async def root():
+            return FileResponse(STATIC_DIR / "index.html")
+
         app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
     return app
