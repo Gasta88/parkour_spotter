@@ -6,9 +6,10 @@ import h3
 
 H3_RESOLUTION = 11
 
-# Approximate average edge length of an H3 cell at resolution 11 in meters.
+# Approximate average diameter of an H3 cell at resolution 11 in meters.
 # Used to convert a radius in km to a k-ring depth.
-_AVG_EDGE_LENGTH_M = 25.0
+# Diameter is roughly 2x the edge length (~50m vs ~25m edge).
+_AVG_DIAMETER_M = 50.0
 
 
 def get_h3_resolution() -> int:
@@ -67,9 +68,9 @@ def get_k_ring(
     if resolution is None:
         resolution = H3_RESOLUTION
 
-    # Convert radius to k-ring depth using average cell edge length
+    # Convert radius to k-ring depth using average cell diameter
     radius_m = radius_km * 1000.0
-    k = max(1, math.ceil(radius_m / _AVG_EDGE_LENGTH_M))
+    k = max(1, math.ceil(radius_m / _AVG_DIAMETER_M))
 
     # grid_disk returns all cells within k steps of the center cell
     # Wrap in set() for consistent return type across h3 library versions
@@ -91,13 +92,15 @@ def h3_index_to_bigint(h3_index: str) -> int:
     return int(h3_index, 16)
 
 
-def bigint_to_h3_index(bigint: int) -> str:
+def bigint_to_h3_index(bigint: int | str) -> str:
     """Convert a bigint H3 index to its hex string representation.
 
     Args:
-        bigint: H3 index as a Python int
+        bigint: H3 index as a Python int or hex string (from asyncpg h3index type)
 
     Returns:
         H3 index as a hex string (e.g. "8b1fb46622dffff")
     """
+    if isinstance(bigint, str):
+        return bigint
     return format(bigint, "x")

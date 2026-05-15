@@ -29,7 +29,7 @@ class ScorerPipeline:
         self,
         engine: AsyncEngine,
         resolution: int = 11,
-        spatial_alpha: float = 0.7,
+        spatial_alpha: float = 0.9,
     ):
         """Initialize the scorer pipeline.
 
@@ -96,6 +96,9 @@ class ScorerPipeline:
         # Step 3: Apply spatial smoothing pass
         if self.spatial_alpha < 1.0:
             self._apply_spatial_smoothing(cells, cell_scores)
+
+        # Step 4: Filter out zero-score cells to reduce response size
+        cells = [cell for cell in cells if cell.score > 0]
 
         query_time_ms = int((time.time() - start_time) * 1000)
         return cells, query_time_ms

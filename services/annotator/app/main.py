@@ -5,7 +5,6 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 
-from app.config import settings
 from app.routers import health, spots
 from app.db import engine
 

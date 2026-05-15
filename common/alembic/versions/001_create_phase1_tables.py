@@ -25,7 +25,12 @@ def upgrade() -> None:
     op.create_table(
         "data_version",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
-        sa.Column("loaded_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column(
+            "loaded_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.func.now(),
+            nullable=False,
+        ),
         sa.Column("osm_source_url", sa.String(), nullable=False),
         sa.Column("osm_file_hash", sa.String(), nullable=False),
         sa.Column("file_size_mb", sa.Float(), nullable=False),
@@ -34,8 +39,18 @@ def upgrade() -> None:
         ),
         sa.Column("load_duration_seconds", sa.Integer(), nullable=True),
         sa.Column("success", sa.Boolean(), default=True, nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.func.now(),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.func.now(),
+            nullable=False,
+        ),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index("ix_data_version_loaded_at", "data_version", ["loaded_at"])

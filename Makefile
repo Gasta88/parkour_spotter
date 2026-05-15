@@ -17,7 +17,10 @@ lint:
 	uv run ruff format --check .
 
 load-osm:
-	docker compose up --build osm-loader
+ifndef OSM_LOCAL_FILE
+	$(error OSM_LOCAL_FILE is not set. Usage: make load-osm OSM_LOCAL_FILE=<filename>)
+endif
+	OSM_LOCAL_FILE=$(OSM_LOCAL_FILE) docker compose up --build osm-loader
 
 load-osm-force:
 	FORCE_RELOAD=true docker compose up --build osm-loader
@@ -33,12 +36,6 @@ status:
 
 clean-osm:
 	docker compose exec -T postgis psql -U parkour -d parkour -c "TRUNCATE TABLE planet_osm_point CASCADE; TRUNCATE TABLE planet_osm_line CASCADE; TRUNCATE TABLE planet_osm_polygon CASCADE; TRUNCATE TABLE planet_osm_roads CASCADE;"
-
-switch-city:
-ifndef OSM_URL
-	$(error OSM_URL is not set. Usage: make switch-city OSM_URL=<url>)
-endif
-	OSM_URL=$(OSM_URL) docker compose up --build osm-loader
 
 seed:
 	docker compose exec -T postgis psql -U parkour -d parkour < scripts/seed-data.sql
