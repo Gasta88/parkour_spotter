@@ -15,7 +15,4 @@ COPY common/common ./common/common
 
 RUN uv pip install --system -e ./common
 
-COPY common/alembic.ini ./common/alembic.ini
-COPY common/alembic ./common/alembic
-
 WORKDIR /app/common

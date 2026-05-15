@@ -12,7 +12,7 @@ services:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./scripts/init-h3-pg.sql:/docker-entrypoint-initdb.d/init-h3-pg.sql:ro
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-parkour} -d ${POSTGRES_DB:-parkour}"]
       interval: 10s
@@ -32,8 +32,6 @@ services:
     depends_on:
       postgis:
         condition: service_healthy
-      migrate:
-        condition: service_completed_successfully
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-parkour}:${POSTGRES_PASSWORD:-parkour}@postgis:5432/${POSTGRES_DB:-parkour}
       OSM_MIN_FILE_SIZE_MB: ${OSM_MIN_FILE_SIZE_MB:-1}
@@ -46,20 +44,6 @@ services:
       - ./data:/osm-data
     restart: "no"
 
-  migrate:
-    build:
-      context: .
-      dockerfile: common/Dockerfile
-    container_name: parkour-migrate
-    depends_on:
-      postgis:
-        condition: service_healthy
-    environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-parkour}:${POSTGRES_PASSWORD:-parkour}@postgis:5432/${POSTGRES_DB:-parkour}
-    working_dir: /app/common
-    command: alembic upgrade head
-    restart: "no"
-
   api:
     build:
       context: .
@@ -68,8 +52,6 @@ services:
     depends_on:
       postgis:
         condition: service_healthy
-      migrate:
-        condition: service_completed_successfully
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-parkour}:${POSTGRES_PASSWORD:-parkour}@postgis:5432/${POSTGRES_DB:-parkour}
       H3_RESOLUTION: ${H3_RESOLUTION:-11}
@@ -93,8 +75,6 @@ services:
     depends_on:
       postgis:
         condition: service_healthy
-      migrate:
-        condition: service_completed_successfully
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-parkour}:${POSTGRES_PASSWORD:-parkour}@postgis:5432/${POSTGRES_DB:-parkour}
     ports:
