@@ -41,10 +41,10 @@ DEFAULT_LENGTH_WEIGHTS: dict[str, float] = {
 }
 
 DEFAULT_AREA_WEIGHTS: dict[str, float] = {
-    "playgrounds": 0.02,
-    "parking": 0.015,
-    "sports_pitches": 0.02,
-    "rocks_stones": 0.01,
+    "playgrounds": 0.3,
+    "parking": 0.2,
+    "sports_pitches": 0.3,
+    "rocks_stones": 0.15,
 }
 
 # Default sigmoid parameters for normalization

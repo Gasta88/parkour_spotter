@@ -92,13 +92,15 @@ def h3_index_to_bigint(h3_index: str) -> int:
     return int(h3_index, 16)
 
 
-def bigint_to_h3_index(bigint: int) -> str:
+def bigint_to_h3_index(bigint: int | str) -> str:
     """Convert a bigint H3 index to its hex string representation.
 
     Args:
-        bigint: H3 index as a Python int
+        bigint: H3 index as a Python int or hex string (from asyncpg h3index type)
 
     Returns:
         H3 index as a hex string (e.g. "8b1fb46622dffff")
     """
+    if isinstance(bigint, str):
+        return bigint
     return format(bigint, "x")
