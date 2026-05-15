@@ -2,6 +2,25 @@
 
 A platform for analyzing and annotating parkour spots using OpenStreetMap data and H3 hexagonal grid indexing.
 
+## Project Structure
+
+```
+parkour_spotter/
+├── common/              # Shared Python package (models, DB utils, H3 utils)
+├── services/
+│   ├── api/            # Analysis API service (port 8000)
+│   ├── annotator/      # Annotation UI service (port 8001)
+│   └── frontend/       # Leaflet map frontend (port 8080)
+├── scripts/
+│   ├── osm-loader/     # OSM data loading script
+│   ├── init-db.sql     # Database initialization
+│   └── seed-data.sql   # Seed data for development
+├── data/               # Local OSM PBF files (git-ignored)
+├── docker-compose.yml  # Service orchestration
+├── Makefile            # Common dev commands
+└── pyproject.toml      # Python workspace config
+```
+
 ## Quick Start
 
 ### Prerequisites
@@ -9,84 +28,181 @@ A platform for analyzing and annotating parkour spots using OpenStreetMap data a
 - Docker and Docker Compose
 - uv (Python package manager)
 
-### Development
+### Setup
 
 ```bash
-# Start all services
+# 1. Clone and configure
+git clone <repository>
+cp .env.example .env
+
+# 2. Start all services
 make up
 
-# Run tests
+# 3. Load OSM data (required before using the platform)
+make load-local OSM_LOCAL_FILE=city.osm.pbf
+
+# 4. Verify services are running
+make logs
+```
+
+### Common Commands
+
+```bash
+make up              # Start all services
+make down            # Stop all services
+make restart         # Restart services
+make test            # Run tests
+make lint            # Lint and format check
+make logs            # View all logs
+make status          # Check database status
+make clean           # Full clean (removes volumes)
+```
+
+## Getting OSM Data
+
+### Option 1: Geofabrik (Recommended)
+
+Geofabrik provides free OSM extracts for regions worldwide:
+
+1. Visit [https://download.geofabrik.de/](https://download.geofabrik.de/)
+2. Navigate to your region (e.g., Europe → Italy → Veneto)
+3. Download the `.osm.pbf` file
+4. Place it in the `data/` directory
+
+```bash
+mkdir -p data
+wget -O data/padova.osm.pbf https://download.geofabrik.de/europe/italy/veneto/padova-latest.osm.pbf
+```
+
+### Option 2: BBBike
+
+BBBike allows custom area extracts:
+
+1. Visit [https://extract.bbbike.org/](https://extract.bbbike.org/)
+2. Select your area on the map
+3. Choose PBF format
+4. Download and place in `data/` directory
+
+### Option 3: Overpass Turbo
+
+For small custom areas:
+
+1. Visit [https://overpass-turbo.eu/](https://overpass-turbo.eu/)
+2. Draw your area and export as PBF
+3. Place in `data/` directory
+
+### Loading OSM Data
+
+```bash
+# Load from local PBF file
+make load-local OSM_LOCAL_FILE=city.osm.pbf
+
+# Force reload (ignores idempotency check)
+make load-osm-force
+
+# Check loaded data status
+make status
+```
+
+## Local Development
+
+### Environment Setup
+
+1. **Configure environment variables:**
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` as needed (defaults work for most cases).
+
+2. **Start services:**
+
+```bash
+make up
+```
+
+3. **Load OSM data:**
+
+```bash
+make load-local OSM_LOCAL_FILE=your_city.osm.pbf
+```
+
+### Running Tests
+
+```bash
+# Run all tests
 make test
 
-# Run linter
+# Run with coverage
+uv run pytest --cov
+
+# Run specific test file
+uv run pytest services/api/app/tests/test_health.py
+```
+
+### Linting and Formatting
+
+```bash
+# Check lint and format
 make lint
 
-# View logs
+# Auto-fix issues
+uv run ruff check . --fix
+
+# Auto-format code
+uv run ruff format .
+```
+
+### Viewing Logs
+
+```bash
+# All services
 make logs
 
-# Stop all services
-make down
-
-# Load OSM data (one-time)
-make load-osm
-
-# Load OSM data from a local PBF file (recommended for development)
-# First, place your city's .osm.pbf file in the data/ directory
-make load-local OSM_LOCAL_FILE=city.osm.pbf
+# Specific service
+make logs-api
+make logs-annotator
+make logs-frontend
+make logs-db
 ```
 
-### Local PBF Workflow (Recommended for Development)
+### Database Access
 
-For faster development cycles, you can store the OSM PBF file locally instead of downloading it every time:
+```bash
+# Shell into database
+make shell-db
 
-1. **Download the PBF file once** (from any source) and place it in the `data/` directory:
-   ```bash
-   mkdir -p data
-   wget -O data/city.osm.pbf "$OSM_URL"
-   # Or download from Geofabrik, BBBike, etc.
-   ```
-
-2. **Load from the local file** — near-instant, no network download:
-   ```bash
-   make load-local OSM_LOCAL_FILE=city.osm.pbf
-   ```
-
-3. **Subsequent loads** are fast because the idempotency check skips re-importing the same data.
-
-The `data/` directory is git-ignored, so PBF files won't be tracked. You can switch cities by placing different `.osm.pbf` files in `data/` and changing the `OSM_LOCAL_FILE` value.
-
-### Services
-
-| Service     | Port | Description                    |
-|-------------|------|--------------------------------|
-| postgis     | 5432 | PostgreSQL with PostGIS        |
-| api         | 8000 | FastAPI backend for analysis   |
-| annotator   | 8001 | FastAPI annotation UI backend  |
-| frontend    | 8080 | Leaflet map frontend           |
-| osm-loader  | -    | One-shot OSM data loader       |
-
-## Project Structure
-
-```
-parkour_spotter/
-├── common/              # Shared Python package
-├── services/
-│   ├── api/            # Analysis API service
-│   ├── annotator/      # Annotation UI service
-│   └── frontend/       # Leaflet map frontend
-├── scripts/
-│   └── osm-loader/     # OSM data loading script
-└── docs/               # Documentation
+# Query loaded data
+make status
 ```
 
-## API Endpoints
+### Switching Cities
 
-### Analysis API (port 8000)
+To analyze a different city:
+
+1. Download the new city's `.osm.pbf` file to `data/`
+2. Update `OSM_LOCAL_FILE` in `.env`
+3. Clean existing data: `make clean-osm`
+4. Load new data: `make load-local OSM_LOCAL_FILE=new_city.osm.pbf`
+
+### Service Ports
+
+| Service     | Port | URL                      |
+|-------------|------|--------------------------|
+| postgis     | 5432 | localhost:5432           |
+| api         | 8000 | http://localhost:8000    |
+| annotator   | 8001 | http://localhost:8001    |
+| frontend    | 8080 | http://localhost:8080    |
+
+### API Endpoints
+
+**Analysis API (port 8000)**
 
 - `GET /health` - Health check
 - `POST /analyze` - Analyze area for parkour spots
 
-### Annotator API (port 8001)
+**Annotator API (port 8001)**
 
 - `GET /health` - Health check
 - `GET /spots` - List annotation spots
