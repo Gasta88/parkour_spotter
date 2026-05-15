@@ -145,14 +145,12 @@ class TestFeatureExtractorIntegration:
         """Test feature extraction with seeded wall data."""
         from sqlalchemy.ext.asyncio import create_async_engine
         from app.services.feature_extractor import FeatureExtractor
-        from common.h3_utils import h3_index_to_bigint
 
         conn = postgis_connection
 
         # Get a test location and its H3 cell
         test_lat, test_lon = 45.4064, 11.8778
         center_cell = latlng_to_h3(test_lat, test_lon, 11)
-        center_bigint = h3_index_to_bigint(center_cell)
 
         # Insert test wall data (line feature)
         # Use ST_SetSRID and ST_MakePoint to create a point in EPSG:3857
@@ -166,13 +164,6 @@ class TestFeatureExtractorIntegration:
                 ), 4326)
             )
         """)
-
-        # Create engine and extractor
-        db_url = (
-            str(conn.get_raw_connection().dsn)
-            if hasattr(conn, "get_raw_connection")
-            else None
-        )
         # Use the connection's DSN to create an async engine
         # For testcontainers with psycopg driver, we need to convert the URL
         raw_dsn = conn.get_dsn()

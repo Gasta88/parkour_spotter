@@ -17,8 +17,8 @@ if [ -z "$DATABASE_URL" ]; then
     exit 1
 fi
 
-if [ -z "$OSM_LOCAL_FILE" ] && [ -z "$OSM_URL" ]; then
-    log "Error: Neither OSM_LOCAL_FILE nor OSM_URL is set"
+if [ -z "$OSM_LOCAL_FILE" ]; then
+    log "Error: OSM_LOCAL_FILE is not set. Please provide a local .osm.pbf file."
     exit 1
 fi
 
@@ -30,24 +30,12 @@ OSM2PGSQL_PROCESSES=${OSM2PGSQL_PROCESSES:-2}
 
 OSM_FILE="/tmp/data.osm.pbf"
 
-# Local-file-first logic: check for a local PBF before downloading
-if [ -n "$OSM_LOCAL_FILE" ]; then
-    LOCAL_PATH="/osm-data/$OSM_LOCAL_FILE"
-    if [ -f "$LOCAL_PATH" ]; then
-        log "Using local OSM file: $LOCAL_PATH"
-        cp "$LOCAL_PATH" "$OSM_FILE"
-    else
-        log "Error: OSM_LOCAL_FILE is set to '$OSM_LOCAL_FILE' but file not found at $LOCAL_PATH"
-        exit 1
-    fi
-elif [ -n "$OSM_URL" ]; then
-    log "Downloading OSM data from $OSM_URL..."
-    if ! wget -O "$OSM_FILE" "$OSM_URL"; then
-        log "Error: Failed to download OSM file from $OSM_URL"
-        exit 1
-    fi
+LOCAL_PATH="/osm-data/$OSM_LOCAL_FILE"
+if [ -f "$LOCAL_PATH" ]; then
+    log "Using local OSM file: $LOCAL_PATH"
+    cp "$LOCAL_PATH" "$OSM_FILE"
 else
-    log "Error: Neither OSM_LOCAL_FILE nor OSM_URL is set"
+    log "Error: OSM_LOCAL_FILE is set to '$OSM_LOCAL_FILE' but file not found at $LOCAL_PATH"
     exit 1
 fi
 
@@ -104,39 +92,6 @@ until pg_isready -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER"; do
 done
 
 log "PostgreSQL is up"
-
-log "Creating data_version table if not exists..."
-psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" <<EOF
-CREATE TABLE IF NOT EXISTS data_version (
-    id SERIAL PRIMARY KEY,
-    loaded_at TIMESTAMPTZ DEFAULT NOW(),
-    osm_source_url TEXT NOT NULL,
-    osm_file_hash TEXT NOT NULL,
-    file_size_mb REAL NOT NULL,
-    row_counts JSONB NOT NULL,
-    load_duration_seconds INTEGER,
-    success BOOLEAN DEFAULT TRUE
-);
-EOF
-
-if [ "$FORCE_RELOAD" != "true" ]; then
-    log "Checking for recent load within ${REFRESH_INTERVAL_HOURS}h with matching hash..."
-    RECENT_LOAD=$(psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -t -A -v hash="$OSM_FILE_HASH" -v interval_hours="$REFRESH_INTERVAL_HOURS" <<EOF
-SELECT COUNT(*) FROM data_version
-WHERE loaded_at > NOW() - make_interval(hours => :interval_hours)
-AND osm_file_hash = :'hash'
-AND success = TRUE;
-EOF
-)
-    if [[ "$RECENT_LOAD" =~ ^[0-9]+$ ]] && [ "$RECENT_LOAD" -gt 0 ]; then
-        log "Idempotency check passed: recent successful load with same file hash found. Skipping reload."
-        rm -f "$OSM_FILE"
-        exit 0
-    fi
-    log "No recent load found, proceeding with import"
-else
-    log "FORCE_RELOAD=true, bypassing idempotency check"
-fi
 
 log "Enabling required PostgreSQL extensions..."
 psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" <<EOF
@@ -223,9 +178,9 @@ fi
 log "Recording data version metadata..."
 ROW_COUNTS_JSON="{\"point\":$POINT_COUNT,\"line\":$LINE_COUNT,\"polygon\":$POLYGON_COUNT}"
 
-psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -v url="$OSM_URL" -v hash="$OSM_FILE_HASH" -v size_mb="$FILE_SIZE_MB" -v counts="$ROW_COUNTS_JSON" -v duration="$LOAD_DURATION" <<EOF
+psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -v source="$OSM_LOCAL_FILE" -v hash="$OSM_FILE_HASH" -v size_mb="$FILE_SIZE_MB" -v counts="$ROW_COUNTS_JSON" -v duration="$LOAD_DURATION" <<EOF
 INSERT INTO data_version (osm_source_url, osm_file_hash, file_size_mb, row_counts, load_duration_seconds, success)
-VALUES (:'url', :'hash', :size_mb, :'counts'::jsonb, :duration, TRUE);
+VALUES (:'source', :'hash', :size_mb, :'counts'::jsonb, :duration, TRUE);
 EOF
 
 log "OSM data loaded successfully in ${LOAD_DURATION}s!"

@@ -28,9 +28,7 @@ def upgrade() -> None:
     )
     op.add_column(
         "spots_annotated",
-        sa.Column(
-            "features", postgresql.JSONB(astext_type=sa.Text()), nullable=True
-        ),
+        sa.Column("features", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
     )
     op.create_unique_constraint(
         "uq_spots_annotated_h3_index", "spots_annotated", ["h3_index"]

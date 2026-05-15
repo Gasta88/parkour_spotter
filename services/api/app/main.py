@@ -3,7 +3,6 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
-from app.config import settings
 from app.routers import analyze, health
 from app.db import engine
 

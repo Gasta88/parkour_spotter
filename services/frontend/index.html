@@ -323,11 +323,24 @@
                     weight: 1,
                 });
 
-                polygonLayer.bindPopup(buildPopupContent(cell));
+                let tooltipContent = `<div><strong>Score:</strong> ${cell.score.toFixed(2)}</div>`;
+                tooltipContent += `<div>${lat.toFixed(5)}, ${lon.toFixed(5)}</div>`;
+                
+                if (cell.features && Object.keys(cell.features).length > 0) {
+                    const sorted = Object.entries(cell.features)
+                        .sort((a, b) => (b[1].count || 0) - (a[1].count || 0))
+                        .slice(0, 3);
+                    
+                    const featureNames = sorted.map(([name]) => name).join(', ');
+                    tooltipContent += `<div style="margin-top: 4px;"><strong>Features:</strong> ${featureNames}</div>`;
+                }
 
-                polygonLayer.on('click', function() {
-                    window.open(gsvUrl, '_blank', 'noopener,noreferrer');
+                polygonLayer.bindTooltip(tooltipContent, {
+                    sticky: true,
+                    direction: 'top',
                 });
+
+                polygonLayer.bindPopup(buildPopupContent(cell));
 
                 hexLayer.addLayer(polygonLayer);
             }

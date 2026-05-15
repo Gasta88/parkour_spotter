@@ -130,8 +130,6 @@ def _row_to_metrics(row, feature_name: str) -> dict:
 
     # Row structure: (h3_index, count, [total_length_m], [total_area_m2])
     # Column indices vary by query; we check by column name
-    row_dict = row._mapping if hasattr(row, "_mapping") else dict(row._fields)
-
     if hasattr(row, "_mapping"):
         mapping = dict(row._mapping)
         metrics["count"] = mapping.get("count", 0)
