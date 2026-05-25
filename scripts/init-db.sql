@@ -40,7 +40,6 @@ CREATE TABLE IF NOT EXISTS spots_annotated (
     h3_index VARCHAR(16) NOT NULL,
     rating INT NOT NULL,
     notes TEXT NOT NULL DEFAULT '',
-    feature_summary JSONB,
     human_score FLOAT,
     features JSONB,
     created_at TIMESTAMPTZ NOT NULL,

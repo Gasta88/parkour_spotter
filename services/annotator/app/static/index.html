@@ -27,7 +27,7 @@
             width: 100%;
         }
         #sidebar {
-            width: 300px;
+            width: 350px;
             background: #f5f5f5;
             padding: 1rem;
             overflow-y: auto;
@@ -43,7 +43,8 @@
             margin-bottom: 1rem;
         }
         .annotation-form input,
-        .annotation-form textarea {
+        .annotation-form textarea,
+        .annotation-form select {
             width: 100%;
             margin-bottom: 0.5rem;
             padding: 0.5rem;
@@ -57,9 +58,66 @@
             padding: 0.5rem 1rem;
             border-radius: 4px;
             cursor: pointer;
+            margin-right: 0.5rem;
         }
         .annotation-form button:hover {
             background: #2980b9;
+        }
+        .feature-section {
+            margin-bottom: 1rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .feature-section summary {
+            background: #ecf0f1;
+            padding: 0.5rem;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .feature-section summary:hover {
+            background: #bdc3c7;
+        }
+        .feature-section-content {
+            padding: 0.5rem;
+            background: #fff;
+        }
+        .feature-input-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        .feature-input-group label {
+            font-size: 0.8rem;
+            color: #666;
+        }
+        .feature-input-group input {
+            width: 100%;
+            padding: 0.25rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+        .form-group {
+            margin-bottom: 0.75rem;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 0.25rem;
+            font-weight: 500;
+            color: #333;
+        }
+        #h3-index {
+            font-family: monospace;
+        }
+        .spot-info {
+            font-size: 0.85rem;
+            color: #666;
+            margin-bottom: 0.5rem;
+        }
+        .spot-info strong {
+            color: #333;
         }
     </style>
 </head>
@@ -72,10 +130,154 @@
         <div id="sidebar">
             <div class="annotation-form">
                 <h3>Add Annotation</h3>
-                <input type="text" id="h3-index" placeholder="H3 Index">
-                <textarea id="notes" placeholder="Notes" rows="3"></textarea>
-                <input type="number" id="rating" placeholder="Rating (0-5)" step="0.1" min="0" max="5">
+                <div class="form-group">
+                    <label for="h3-index">H3 Index *</label>
+                    <input type="text" id="h3-index" placeholder="Enter H3 index" onchange="fetchCellFeatures()">
+                </div>
+                <div class="form-group">
+                    <label for="rating">Rating (0-5) *</label>
+                    <input type="number" id="rating" placeholder="0-5" step="1" min="0" max="5">
+                </div>
+                <div class="form-group">
+                    <label for="notes">Notes</label>
+                    <textarea id="notes" placeholder="Additional notes" rows="3"></textarea>
+                </div>
+
+                <h4>Features</h4>
+                <div class="feature-section">
+                    <details>
+                        <summary>Walls</summary>
+                        <div class="feature-section-content">
+                            <div class="feature-input-group">
+                                <div>
+                                    <label>Count</label>
+                                    <input type="number" id="walls-count" min="0" value="0" step="1">
+                                </div>
+                                <div>
+                                    <label>Length (m)</label>
+                                    <input type="number" id="walls-length" min="0" value="0" step="0.1">
+                                </div>
+                                <div>
+                                    <label>Area (m²)</label>
+                                    <input type="number" id="walls-area" min="0" value="0" step="0.1">
+                                </div>
+                            </div>
+                        </div>
+                    </details>
+                </div>
+
+                <div class="feature-section">
+                    <details>
+                        <summary>Rails</summary>
+                        <div class="feature-section-content">
+                            <div class="feature-input-group">
+                                <div>
+                                    <label>Count</label>
+                                    <input type="number" id="rails-count" min="0" value="0" step="1">
+                                </div>
+                                <div>
+                                    <label>Length (m)</label>
+                                    <input type="number" id="rails-length" min="0" value="0" step="0.1">
+                                </div>
+                                <div>
+                                    <label>Area (m²)</label>
+                                    <input type="number" id="rails-area" min="0" value="0" step="0.1">
+                                </div>
+                            </div>
+                        </div>
+                    </details>
+                </div>
+
+                <div class="feature-section">
+                    <details>
+                        <summary>Gaps</summary>
+                        <div class="feature-section-content">
+                            <div class="feature-input-group">
+                                <div>
+                                    <label>Count</label>
+                                    <input type="number" id="gaps-count" min="0" value="0" step="1">
+                                </div>
+                                <div>
+                                    <label>Length (m)</label>
+                                    <input type="number" id="gaps-length" min="0" value="0" step="0.1">
+                                </div>
+                                <div>
+                                    <label>Area (m²)</label>
+                                    <input type="number" id="gaps-area" min="0" value="0" step="0.1">
+                                </div>
+                            </div>
+                        </div>
+                    </details>
+                </div>
+
+                <div class="feature-section">
+                    <details>
+                        <summary>Stairs</summary>
+                        <div class="feature-section-content">
+                            <div class="feature-input-group">
+                                <div>
+                                    <label>Count</label>
+                                    <input type="number" id="stairs-count" min="0" value="0" step="1">
+                                </div>
+                                <div>
+                                    <label>Length (m)</label>
+                                    <input type="number" id="stairs-length" min="0" value="0" step="0.1">
+                                </div>
+                                <div>
+                                    <label>Area (m²)</label>
+                                    <input type="number" id="stairs-area" min="0" value="0" step="0.1">
+                                </div>
+                            </div>
+                        </div>
+                    </details>
+                </div>
+
+                <div class="feature-section">
+                    <details>
+                        <summary>Vaults</summary>
+                        <div class="feature-section-content">
+                            <div class="feature-input-group">
+                                <div>
+                                    <label>Count</label>
+                                    <input type="number" id="vaults-count" min="0" value="0" step="1">
+                                </div>
+                                <div>
+                                    <label>Length (m)</label>
+                                    <input type="number" id="vaults-length" min="0" value="0" step="0.1">
+                                </div>
+                                <div>
+                                    <label>Area (m²)</label>
+                                    <input type="number" id="vaults-area" min="0" value="0" step="0.1">
+                                </div>
+                            </div>
+                        </div>
+                    </details>
+                </div>
+
+                <div class="feature-section">
+                    <details>
+                        <summary>Open Spaces</summary>
+                        <div class="feature-section-content">
+                            <div class="feature-input-group">
+                                <div>
+                                    <label>Count</label>
+                                    <input type="number" id="open_spaces-count" min="0" value="0" step="1">
+                                </div>
+                                <div>
+                                    <label>Length (m)</label>
+                                    <input type="number" id="open_spaces-length" min="0" value="0" step="0.1">
+                                </div>
+                                <div>
+                                    <label>Area (m²)</label>
+                                    <input type="number" id="open_spaces-area" min="0" value="0" step="0.1">
+                                </div>
+                            </div>
+                        </div>
+                    </details>
+                </div>
+
                 <button onclick="addAnnotation()">Save Annotation</button>
+                <button onclick="clearForm()" style="background: #95a5a6;">Clear</button>
             </div>
             <div id="annotations-list">
                 <h3>Annotations</h3>
