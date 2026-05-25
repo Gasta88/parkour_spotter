@@ -1,13 +1,13 @@
 """Spots CRUD endpoints."""
 
 from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import Any
 from datetime import datetime
 
-from common.models import SpotAnnotation
+from common.models import SpotAnnotation, CellFeature
 from app.db import get_db
 
 router = APIRouter(prefix="/spots", tags=["spots"])
@@ -20,7 +20,8 @@ class Spot(BaseModel):
     h3_index: str
     notes: str = ""
     rating: int = 0
-    feature_summary: dict[str, Any] | None = None
+    human_score: float | None = None
+    features: dict[str, Any] | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
 
@@ -32,16 +33,16 @@ class SpotCreate(BaseModel):
 
     h3_index: str
     notes: str = ""
-    rating: int = 0
-    feature_summary: dict[str, Any] | None = None
+    rating: int = Field(..., ge=0, le=5)
+    features: dict[str, Any] | None = None
 
 
 class SpotUpdate(BaseModel):
     """Spot update schema."""
 
     notes: str | None = None
-    rating: int | None = None
-    feature_summary: dict[str, Any] | None = None
+    rating: int | None = Field(None, ge=0, le=5)
+    features: dict[str, Any] | None = None
 
 
 @router.get("", response_model=list[Spot])
@@ -70,14 +71,12 @@ async def create_spot(spot: SpotCreate, db: AsyncSession = Depends(get_db)) -> S
     Returns:
         Created spot with ID
     """
-    if spot.rating < 0 or spot.rating > 5:
-        raise HTTPException(status_code=400, detail="Rating must be between 0 and 5")
-
     db_spot = SpotAnnotation(
         h3_index=spot.h3_index,
         notes=spot.notes,
         rating=spot.rating,
-        feature_summary=spot.feature_summary,
+        human_score=float(spot.rating),
+        features=spot.features,
     )
     db.add(db_spot)
     await db.commit()
@@ -123,7 +122,7 @@ async def update_spot(
         Updated spot
 
     Raises:
-        HTTPException: If spot not found or rating out of range
+        HTTPException: If spot not found
     """
     result = await db.execute(
         select(SpotAnnotation).where(SpotAnnotation.id == spot_id)
@@ -133,17 +132,14 @@ async def update_spot(
         raise HTTPException(status_code=404, detail="Spot not found")
 
     if spot_update.rating is not None:
-        if spot_update.rating < 0 or spot_update.rating > 5:
-            raise HTTPException(
-                status_code=400, detail="Rating must be between 0 and 5"
-            )
         spot.rating = spot_update.rating
+        spot.human_score = float(spot_update.rating)
 
     if spot_update.notes is not None:
         spot.notes = spot_update.notes
 
-    if spot_update.feature_summary is not None:
-        spot.feature_summary = spot_update.feature_summary
+    if spot_update.features is not None:
+        spot.features = spot_update.features
 
     await db.commit()
     await db.refresh(spot)
@@ -170,3 +166,65 @@ async def delete_spot(spot_id: int, db: AsyncSession = Depends(get_db)):
 
     await db.delete(spot)
     await db.commit()
+
+
+@router.get("/cell-feature/{h3_index}")
+async def get_cell_feature(h3_index: str, db: AsyncSession = Depends(get_db)):
+    """Get cell feature data for a given H3 index.
+
+    Args:
+        h3_index: H3 index to fetch features for
+        db: Database session
+
+    Returns:
+        Cell feature data in nested JSON format
+
+    Raises:
+        HTTPException: If no cell features found for the H3 index
+    """
+    result = await db.execute(
+        select(CellFeature)
+        .where(CellFeature.h3_index == h3_index)
+        .order_by(CellFeature.created_at.desc())
+    )
+    cell_feature = result.scalar_one_or_none()
+
+    if cell_feature is None:
+        raise HTTPException(
+            status_code=404, detail="No cell features found for this H3 index"
+        )
+
+    features = {
+        "walls": {
+            "count": cell_feature.walls_count,
+            "total_length_m": cell_feature.walls_total_length_m,
+            "total_area_m2": 0.0,
+        },
+        "rails": {
+            "count": cell_feature.rails_count,
+            "total_length_m": cell_feature.rails_total_length_m,
+            "total_area_m2": 0.0,
+        },
+        "gaps": {
+            "count": cell_feature.gaps_count,
+            "total_length_m": cell_feature.gaps_total_length_m,
+            "total_area_m2": 0.0,
+        },
+        "stairs": {
+            "count": cell_feature.stairs_count,
+            "total_length_m": cell_feature.stairs_total_length_m,
+            "total_area_m2": 0.0,
+        },
+        "vaults": {
+            "count": cell_feature.vaults_count,
+            "total_length_m": 0.0,
+            "total_area_m2": cell_feature.vaults_total_area_m2,
+        },
+        "open_spaces": {
+            "count": cell_feature.open_spaces_count,
+            "total_length_m": 0.0,
+            "total_area_m2": cell_feature.open_spaces_total_area_m2,
+        },
+    }
+
+    return {"h3_index": h3_index, "features": features}
