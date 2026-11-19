@@ -9,16 +9,12 @@ class TestScorerPipelineIntegration:
     """Integration tests for the full analyze pipeline."""
 
     @pytest.mark.asyncio
-    async def test_analyze_empty_db_returns_empty_cells(
-        self, postgis_connection
-    ) -> None:
+    async def test_analyze_empty_db_returns_empty_cells(self, postgis_db_url) -> None:
         """Test that analyze against empty DB returns empty cells list."""
         from sqlalchemy.ext.asyncio import create_async_engine
         from app.services.scorer_pipeline import ScorerPipeline
 
-        conn = postgis_connection
-        raw_dsn = conn.get_dsn()
-        async_url = raw_dsn.replace("postgresql://", "postgresql+asyncpg://")
+        async_url = postgis_db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
 
         engine = create_async_engine(async_url, echo=False)
         try:
@@ -33,7 +29,9 @@ class TestScorerPipelineIntegration:
             await engine.dispose()
 
     @pytest.mark.asyncio
-    async def test_analyze_with_seeded_data(self, postgis_connection) -> None:
+    async def test_analyze_with_seeded_data(
+        self, postgis_connection, postgis_db_url
+    ) -> None:
         """Test analyze pipeline with seeded OSM data."""
         from sqlalchemy.ext.asyncio import create_async_engine
         from app.services.scorer_pipeline import ScorerPipeline
@@ -49,7 +47,16 @@ class TestScorerPipelineIntegration:
             VALUES (
                 100,
                 'wall',
-                ST_SetSRID(ST_MakePoint(11.8778, 45.4064), 4326)
+                ST_Transform(
+                    ST_SetSRID(
+                        ST_MakeLine(
+                            ST_MakePoint(11.8776, 45.4062),
+                            ST_MakePoint(11.8780, 45.4066)
+                        ),
+                        4326
+                    ),
+                    3857
+                )
             )
         """)
 
@@ -59,12 +66,11 @@ class TestScorerPipelineIntegration:
             VALUES (
                 200,
                 'bench',
-                ST_SetSRID(ST_MakePoint(11.8778, 45.4064), 4326)
+                ST_Transform(ST_SetSRID(ST_MakePoint(11.8778, 45.4064), 4326), 3857)
             )
         """)
 
-        raw_dsn = conn.get_dsn()
-        async_url = raw_dsn.replace("postgresql://", "postgresql+asyncpg://")
+        async_url = postgis_db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
 
         engine = create_async_engine(async_url, echo=False)
         try:
@@ -89,7 +95,9 @@ class TestScorerPipelineIntegration:
         await conn.execute("DELETE FROM planet_osm_point WHERE osm_id = 200")
 
     @pytest.mark.asyncio
-    async def test_analyze_cell_has_feature_breakdown(self, postgis_connection) -> None:
+    async def test_analyze_cell_has_feature_breakdown(
+        self, postgis_connection, postgis_db_url
+    ) -> None:
         """Test that returned cells include feature breakdown."""
         from sqlalchemy.ext.asyncio import create_async_engine
         from app.services.scorer_pipeline import ScorerPipeline
@@ -103,23 +111,25 @@ class TestScorerPipelineIntegration:
             VALUES (
                 300,
                 'playground',
-                ST_SetSRID(
-                    ST_MakePolygon(
-                        ST_GeomFromText('LINESTRING(
-                            11.8770 45.4060,
-                            11.8780 45.4060,
-                            11.8780 45.4070,
-                            11.8770 45.4070,
-                            11.8770 45.4060
-                        )', 4326)
+                ST_Transform(
+                    ST_SetSRID(
+                        ST_MakePolygon(
+                            ST_GeomFromText('LINESTRING(
+                                11.8770 45.4060,
+                                11.8780 45.4060,
+                                11.8780 45.4070,
+                                11.8770 45.4070,
+                                11.8770 45.4060
+                            )', 4326)
+                        ),
+                        4326
                     ),
-                    4326
+                    3857
                 )
             )
         """)
 
-        raw_dsn = conn.get_dsn()
-        async_url = raw_dsn.replace("postgresql://", "postgresql+asyncpg://")
+        async_url = postgis_db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
 
         engine = create_async_engine(async_url, echo=False)
         try:

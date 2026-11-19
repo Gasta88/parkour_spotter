@@ -52,13 +52,13 @@ logs:
 	docker compose logs -f
 
 restart:
-	docker-compose restart
+	docker compose restart
 
 logs-db:
-	docker-compose logs -f postgis
+	docker compose logs -f postgis
 
 logs-api:
-	docker-compose logs -f api
+	docker compose logs -f api
 
 logs-loader:
 	docker compose logs -f osm-loader
@@ -70,4 +70,4 @@ logs-frontend:
 	docker compose logs -f frontend
 
 shell-db:
-	docker-compose exec postgis psql -U parkour -d parkour
+	docker compose exec postgis psql -U parkour -d parkour

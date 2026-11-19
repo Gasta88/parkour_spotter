@@ -141,7 +141,9 @@ class TestFeatureExtractorIntegration:
     """Integration tests with PostgresContainer (PostGIS)."""
 
     @pytest.mark.asyncio
-    async def test_extract_with_seeded_walls(self, postgis_connection) -> None:
+    async def test_extract_with_seeded_walls(
+        self, postgis_connection, postgis_db_url
+    ) -> None:
         """Test feature extraction with seeded wall data."""
         from sqlalchemy.ext.asyncio import create_async_engine
         from app.services.feature_extractor import FeatureExtractor
@@ -152,22 +154,27 @@ class TestFeatureExtractorIntegration:
         test_lat, test_lon = 45.4064, 11.8778
         center_cell = latlng_to_h3(test_lat, test_lon, 11)
 
-        # Insert test wall data (line feature)
-        # Use ST_SetSRID and ST_MakePoint to create a point in EPSG:3857
+        # Insert test wall data (line feature in EPSG:3857)
         await conn.execute("""
             INSERT INTO planet_osm_line (osm_id, barrier, way)
             VALUES (
                 1,
                 'wall',
-                ST_SetSRID(ST_MakePoint(
-                    11.8778, 45.4064
-                ), 4326)
+                ST_Transform(
+                    ST_SetSRID(
+                        ST_MakeLine(
+                            ST_MakePoint(11.8776, 45.4062),
+                            ST_MakePoint(11.8780, 45.4066)
+                        ),
+                        4326
+                    ),
+                    3857
+                )
             )
         """)
         # Use the connection's DSN to create an async engine
         # For testcontainers with psycopg driver, we need to convert the URL
-        raw_dsn = conn.get_dsn()
-        async_url = raw_dsn.replace("postgresql://", "postgresql+asyncpg://")
+        async_url = postgis_db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
 
         engine = create_async_engine(async_url, echo=False)
         try:
@@ -185,14 +192,12 @@ class TestFeatureExtractorIntegration:
         await conn.execute("DELETE FROM planet_osm_line WHERE osm_id = 1")
 
     @pytest.mark.asyncio
-    async def test_extract_empty_tables(self, postgis_connection) -> None:
+    async def test_extract_empty_tables(self, postgis_db_url) -> None:
         """Test feature extraction against empty planet_osm_* tables."""
         from sqlalchemy.ext.asyncio import create_async_engine
         from app.services.feature_extractor import FeatureExtractor
 
-        conn = postgis_connection
-        raw_dsn = conn.get_dsn()
-        async_url = raw_dsn.replace("postgresql://", "postgresql+asyncpg://")
+        async_url = postgis_db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
 
         engine = create_async_engine(async_url, echo=False)
         try:

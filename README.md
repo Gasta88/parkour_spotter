@@ -1,6 +1,23 @@
 # Parkour Spotter
 
+[![CI](https://github.com/Gasta88/parkour_spotter/actions/workflows/ci.yml/badge.svg)](https://github.com/Gasta88/parkour_spotter/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 A platform for analyzing and annotating parkour spots using OpenStreetMap data and H3 hexagonal grid indexing.
+
+The API extracts parkour-relevant features from OSM (walls, rails, stairs, playgrounds, benches, parking, fitness stations and private-access penalties), aggregates them into H3 resolution-11 cells, and scores each cell with a calibrated rule-based scorer. A Leaflet map visualizes the scored hexagons and an annotation UI records human ratings for future model training.
+
+## Screenshots
+
+![Scored parkour map](docs/images/map-scores.png)
+
+_Scored H3 cells around Padova, colored by parkour suitability score._
+
+| Annotator UI | Analysis results |
+| --- | --- |
+| ![Annotator UI](docs/images/annotator.png) | ![Analysis results](docs/images/results.png) |
+
+![Analyze interaction](docs/images/demo.gif)
 
 ## Project Structure
 
@@ -32,7 +49,7 @@ parkour_spotter/
 
 ```bash
 # 1. Clone and configure
-git clone <repository>
+git clone https://github.com/Gasta88/parkour_spotter.git
 cp .env.example .env
 
 # 2. Start all services
@@ -130,7 +147,12 @@ make load-local OSM_LOCAL_FILE=your_city.osm.pbf
 
 ### Running Tests
 
+The test suite uses `testcontainers`, so Docker must be running. Integration tests start a PostGIS container and load a deterministic OSM fixture from `scripts/test-fixtures/`.
+
 ```bash
+# Install the Python environment
+uv sync
+
 # Run all tests
 make test
 
@@ -210,4 +232,4 @@ To analyze a different city:
 
 ## License
 
-MIT
+Released under the [MIT License](LICENSE).

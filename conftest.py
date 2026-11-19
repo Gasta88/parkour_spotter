@@ -1,21 +1,42 @@
 """Root-level pytest conftest with PostgreSQL testcontainer fixture."""
 
+import os
+from pathlib import Path
+
 import asyncpg
 import pytest
-import socket
+
+POSTGIS_IMAGE = "ivanlonel/postgis-with-extensions:16-3.5"
+FIXTURE_SQL = (
+    Path(__file__).parent / "scripts" / "test-fixtures" / "sample_osm_features.sql"
+)
+
+
+def _ensure_docker_host():
+    """Point DOCKER_HOST at common non-default Docker sockets when unset."""
+    if os.environ.get("DOCKER_HOST"):
+        return
+    for candidate in ("~/.colima/default/docker.sock", "~/.docker/run/docker.sock"):
+        socket_path = Path(candidate).expanduser()
+        if socket_path.exists():
+            os.environ["DOCKER_HOST"] = f"unix://{socket_path}"
+            if "colima" in candidate:
+                os.environ.setdefault(
+                    "TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE", "/var/run/docker.sock"
+                )
+            return
 
 
 def is_docker_available():
-    """Check if Docker daemon is running."""
+    """Check if the Docker daemon is reachable through the configured socket."""
     try:
-        socket.create_connection(("localhost", 2375), timeout=1)
+        from testcontainers.core.docker_client import DockerClient
+
+        _ensure_docker_host()
+        DockerClient().client.ping()
         return True
-    except (socket.error, ConnectionRefusedError):
-        try:
-            socket.create_connection(("127.0.0.1", 2375), timeout=1)
-            return True
-        except (socket.error, ConnectionRefusedError):
-            return False
+    except Exception:
+        return False
 
 
 @pytest.fixture(scope="session")
@@ -32,7 +53,7 @@ def postgres_container():
     if not is_docker_available():
         pytest.skip("Docker not available - skipping container-based tests")
 
-    with PostgresContainer("postgres:15", driver="psycopg") as postgres:
+    with PostgresContainer(POSTGIS_IMAGE, driver=None) as postgres:
         yield {"database_url": postgres.get_connection_url()}
 
 
@@ -196,9 +217,10 @@ async def postgis_db_url(postgres_container):
 
     conn = await asyncpg.connect(database_url)
     try:
-        # Enable PostGIS and hstore extensions
+        # Enable PostGIS, hstore, and h3 extensions
         await conn.execute("CREATE EXTENSION IF NOT EXISTS postgis")
         await conn.execute("CREATE EXTENSION IF NOT EXISTS hstore")
+        await conn.execute("CREATE EXTENSION IF NOT EXISTS h3")
 
         # Create data_version table
         await conn.execute("""
@@ -384,3 +406,24 @@ async def postgis_connection(postgis_db_url):
         yield conn
     finally:
         await conn.close()
+
+
+@pytest.fixture(scope="function")
+async def seeded_postgis_db(postgis_db_url):
+    """Load the deterministic OSM feature fixture into the PostGIS test database.
+
+    Args:
+        postgis_db_url: Database URL from postgis_db_url fixture
+
+    Yields:
+        str: Database URL with the fixture data applied
+    """
+    sql = FIXTURE_SQL.read_text(encoding="utf-8")
+
+    conn = await asyncpg.connect(postgis_db_url)
+    try:
+        await conn.execute(sql)
+    finally:
+        await conn.close()
+
+    yield postgis_db_url
