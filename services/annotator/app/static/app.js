@@ -5,6 +5,46 @@
 console.log('Parkour Spotter Annotator loaded');
 
 let debounceTimer = null;
+let annotatorMap = null;
+let spotLayer = null;
+
+try {
+    annotatorMap = L.map('map').setView([45.4064, 11.8768], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(annotatorMap);
+    spotLayer = L.featureGroup().addTo(annotatorMap);
+} catch (error) {
+    console.error('Unable to initialize the annotation map:', error);
+}
+
+function renderSpotMarkers(spots) {
+    if (!spotLayer) {
+        return;
+    }
+
+    spotLayer.clearLayers();
+    spots.forEach((spot) => {
+        try {
+            const [lat, lng] = h3.cellToLatLng(spot.h3_index);
+            L.circleMarker([lat, lng], {
+                radius: 8,
+                color: '#2c3e50',
+                weight: 2,
+                fillColor: '#e67e22',
+                fillOpacity: 0.85
+            })
+                .bindPopup(`<strong>${spot.h3_index}</strong><br>Rating: ${spot.rating}/5<br>${spot.notes || ''}`)
+                .addTo(spotLayer);
+        } catch (error) {
+            console.warn('Skipping annotation with invalid H3 index:', spot.h3_index);
+        }
+    });
+
+    if (spots.length > 0) {
+        annotatorMap.fitBounds(spotLayer.getBounds().pad(0.2));
+    }
+}
 
 async function fetchCellFeatures() {
     const h3Index = document.getElementById('h3-index').value.trim();
@@ -148,6 +188,7 @@ async function loadAnnotations() {
 
 function renderAnnotations(spots) {
     const container = document.getElementById('annotations-list');
+    renderSpotMarkers(spots);
     if (spots.length === 0) {
         container.innerHTML = '<h3>Annotations</h3><p>No annotations yet.</p>';
         return;
