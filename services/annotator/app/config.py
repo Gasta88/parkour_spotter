@@ -16,7 +16,7 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    database_url: str
+    database_url: str = "postgresql+asyncpg://parkour:parkour@localhost:5432/parkour"
 
 
 settings = Settings()

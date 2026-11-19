@@ -23,7 +23,7 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    database_url: str
+    database_url: str = "postgresql+asyncpg://parkour:parkour@localhost:5432/parkour"
     h3_resolution: int = 11
 
     # Feature weights for all 12 categories
