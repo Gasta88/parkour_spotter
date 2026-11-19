@@ -60,6 +60,7 @@ Thumbs.db
 # Project specific
 data/*.osm.pbf
 data/*.pbf
+.codegraph/
 
 # Specifications
 specs/
