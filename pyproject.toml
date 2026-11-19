@@ -29,3 +29,4 @@ dev-dependencies = [
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["services/api/app/tests", "scripts/osm-loader/tests"]
+pythonpath = ["common", "services/api"]

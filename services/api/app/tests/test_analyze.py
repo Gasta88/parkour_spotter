@@ -14,7 +14,8 @@ def client(postgis_db_url, monkeypatch):
     """Create a test client with PostGIS database URL configured."""
     from app.config import settings
 
-    monkeypatch.setattr(settings, "database_url", postgis_db_url)
+    async_url = postgis_db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+    monkeypatch.setattr(settings, "database_url", async_url)
 
     app_module.app = create_app()
 
@@ -271,42 +272,14 @@ def test_analyze_idempotency_skips_reload_within_interval(
     assert data1["data_version"] is not None
     assert data2["data_version"] is not None
     assert (
-        data1["data_version"]["osm_file_hash"] == data2["data_version"]["osm_file_hash"]
+        data1["data_version"]["osm_source_url"]
+        == data2["data_version"]["osm_source_url"]
     )
+    assert data1["data_version"]["loaded_at"] == data2["data_version"]["loaded_at"]
 
 
-def test_analyze_with_seeded_osm_data(client, postgis_db_url) -> None:
+def test_analyze_with_seeded_osm_data(client, seeded_postgis_db) -> None:
     """Test that POST /analyze returns cells with feature breakdown when OSM data exists."""
-
-    async def seed_data():
-        conn = await asyncpg.connect(postgis_db_url)
-        try:
-            # Insert a wall feature
-            await conn.execute(
-                """
-                INSERT INTO planet_osm_line (osm_id, barrier, way)
-                VALUES (
-                    1000,
-                    'wall',
-                    ST_SetSRID(ST_MakePoint(12.31, 45.44), 4326)
-                )
-                """
-            )
-            # Insert a bench feature
-            await conn.execute(
-                """
-                INSERT INTO planet_osm_point (osm_id, amenity, way)
-                VALUES (
-                    2000,
-                    'bench',
-                    ST_SetSRID(ST_MakePoint(12.31, 45.44), 4326)
-                )
-                """
-            )
-        finally:
-            await conn.close()
-
-    asyncio.run(seed_data())
 
     response = client.post(
         "/analyze",
@@ -329,14 +302,3 @@ def test_analyze_with_seeded_osm_data(client, postgis_db_url) -> None:
         and any(f.get("count", 0) > 0 for f in c["features"].values())
     ]
     assert len(cells_with_features) > 0
-
-    # Clean up
-    async def cleanup():
-        conn = await asyncpg.connect(postgis_db_url)
-        try:
-            await conn.execute("DELETE FROM planet_osm_line WHERE osm_id = 1000")
-            await conn.execute("DELETE FROM planet_osm_point WHERE osm_id = 2000")
-        finally:
-            await conn.close()
-
-    asyncio.run(cleanup())
